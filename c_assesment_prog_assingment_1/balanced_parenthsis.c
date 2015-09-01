@@ -1,11 +1,16 @@
 #include "balanced_parenthsis.h"
+#include <string.h>
+FILE *debg_ofp;
 
 int main(int argc, char *argv[])
 {
-  int       max_len;
-  char      *inp_str;
-  int       inp_choice;
-  int       ds_choice;
+  debg_ofp = fopen("balanced_parenthsis.log", "w");
+  int                max_len;
+  char               *inp_str;
+  int                inp_choice;
+  int                ds_choice;
+  unsigned int       pos;
+  int                status;
   if (argc < 5) {
       fprintf(stderr, "Invalid Arguments\n");
       exit(EXIT_FAILURE);
@@ -17,30 +22,25 @@ int main(int argc, char *argv[])
   if( inp_choice > 0 ) {
      inp_str = get_string_from_file(inp_str, max_len);
   }
-  printf("Input String: %s, Max_len: %d Input Choice: %s\n",
+  fprintf(debg_ofp, "Input String: %s, Max_len: %d Input Choice: %s\n",
 	 inp_str, max_len, (inp_choice > 0 ? "File" : "Command line"));
   switch(ds_choice) {
   case 1:
-    {
-      if( is_balance_ll(inp_str) == 0){
-         printf("TRUE\n");
-      } else {
-         printf("FALSE\n");
-      }
-    }
+      status = is_balance_ll(inp_str, &pos);
     break;
   case 2:
-    {
-      if( is_balance_arr(inp_str, max_len) == 0){
-         printf("TRUE\n");
-      } else {
-         printf("FALSE\n");
-      }
-    }
+      status = is_balance_arr(inp_str, max_len, &pos);
     break;
   default:
     printf("Wrong choice\n");
   }
+
+  if ( status == 0 ) {
+      printf("TRUE\n");
+  } else {
+      printf("FALSE %u\n", pos);
+  }
+  
   if( inp_choice > 0 ) {
      free(inp_str);
   }
@@ -54,7 +54,7 @@ int push_paren_ll(paren_l **head, char ch, unsigned int pos)
   }
   
   if (ch != '(') {
-      printf("Pushed charcter into stack not ( \n");
+      fprintf(debg_ofp, "Pushed charcter into stack not ( \n");
       return 1;
   }
   temp->paren = ch;
@@ -67,7 +67,7 @@ int push_paren_ll(paren_l **head, char ch, unsigned int pos)
 int pop_paren_ll(paren_l **head)
 {
   if (*head == NULL) {
-      printf("paren stack empty\n");
+      fprintf(debg_ofp, "paren stack empty\n");
       return 1;
   }
   paren_l *temp;
@@ -77,12 +77,13 @@ int pop_paren_ll(paren_l **head)
   return 0;
 }
 
-int is_balance_ll(char *inp_str)
+int is_balance_ll(char *inp_str, unsigned int *unbalanced_pos)
 {
-  paren_l   *head;
-  paren_arr *inp_str_cp;
-  int       pos=0;
-  int       status;
+  paren_l            *head;
+  paren_arr          *inp_str_cp;
+  unsigned int       pos;
+  int                status;
+  pos = 0;
   inp_str_cp = inp_str;
   head = NULL;
   while(*inp_str != '\0')
@@ -94,17 +95,19 @@ int is_balance_ll(char *inp_str)
       if (*inp_str == ')') {
 	  status = pop_paren_ll(&head);
 	  if (status == 1) {
-	      printf("Unbalanced string : %s at pos :%d\n", inp_str_cp, pos);
+	      fprintf(debg_ofp, "Unbalanced string : %s at pos :%d\n", inp_str_cp, pos);
+	      *unbalanced_pos = pos;
 	      return 1;
 	  }
       }
       inp_str++;
     }
   if(head == NULL) {
-     printf(" %s is a balanced string\n", inp_str_cp);
+     fprintf(debg_ofp, " %s is a balanced string\n", inp_str_cp);
      return 0;
   } else {
-    printf("Unbalanced string : %s at pos :%d\n", inp_str_cp, head->pos);
+     fprintf(debg_ofp, "Unbalanced string : %s at pos :%d\n", inp_str_cp, head->pos);
+     *unbalanced_pos = pos;
     return 1;
   }
 }
@@ -135,7 +138,7 @@ int push_paren_arr(char *str_stack, int *pos_stack,
       exit(1);
   }
   if (ch != '(') {
-      printf("Pushed charcter into stack not ( \n");
+      fprintf(debg_ofp, "Pushed charcter into stack not ( \n");
       return 1;
   }
   (*top)++;
@@ -147,14 +150,14 @@ int push_paren_arr(char *str_stack, int *pos_stack,
 int pop_paren_arr(int *top)
 {
   if(*top == -1) {
-    printf("Stack empty exiting\n");
+     fprintf(debg_ofp, "Stack empty exiting\n");
     return 1;
   }
   (*top)--;
   return 0;
 }
 
-int is_balance_arr(char *inp_str, int max_len)
+int is_balance_arr(char *inp_str, int max_len, unsigned int *unbalanced_pos)
 {
   char         *paren_stack;
   int          *paren_pos_stack;
@@ -178,17 +181,20 @@ int is_balance_arr(char *inp_str, int max_len)
       if (*inp_str == ')') {
 	  status = pop_paren_arr(&top);
 	  if (status == 1) {
-	      printf("Unbalanced string : %s at pos :%d\n", inp_str_cp, pos);
+	      fprintf(debg_ofp, "Unbalanced string : %s at pos :%d\n", inp_str_cp, pos);
+	      *unbalanced_pos = pos;
 	      return 1;
 	  }
       }
       inp_str++;
     }
   if(top == -1) {
-     printf(" %s is a balanced string\n", inp_str_cp);
+     fprintf(debg_ofp, " %s is a balanced string\n", inp_str_cp);
      return 0;
   } else {
-     printf("Unbalanced string : %s at pos :%d\n", inp_str_cp, paren_pos_stack[top]);
+     fprintf(debg_ofp,
+	    "Unbalanced string : %s at pos :%d\n", inp_str_cp, paren_pos_stack[top]);
+     *unbalanced_pos = pos;
      return 1;
   }
   free(paren_stack);

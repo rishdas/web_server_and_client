@@ -1,0 +1,27 @@
+To steps to build the binary:
+
+$ make clean
+rm -f *.o *~ *.bin *.log
+
+$ make compile
+gcc -c balanced_parenthsis.c balanced_parenthsis.h
+
+$ make build
+gcc -o balanced_parenthsis.bin balanced_parenthsis.o
+
+Run the binary :
+
+SYNTAX:
+./balanced_parenthsis.bin <file name and location/String> <max_len> <string: 0 | file: 1> <linkedlist : 1 | array: 2>
+
+Examples :
+Pick from file "test.txt", max len = 20, file or string choice : 1 data structure choice : 1(linked list) 
+
+./balanced_parenthsis.bin "test.txt" 20 1 1
+TRUE
+
+Pick from string "())", max len = 20, file or string choice : 0 data structure choice : 2(array) 
+
+./balanced_parenthsis.bin "())" 20 0 2
+FALSE 3
+

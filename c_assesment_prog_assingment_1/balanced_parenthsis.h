@@ -11,8 +11,8 @@ typedef struct list {
 typedef char paren_arr;
 int push_paren_ll(paren_l**, char, unsigned int);
 int pop_paren_ll(paren_l**);
-int is_balance_ll(char*);
+int is_balance_ll(char*, unsigned int*);
 char *get_string_from_file(char*, int); //Free the string after use
-int is_balance_arr(char*, int);
+int is_balance_arr(char*, int, unsigned int*);
 int push_paren_arr(char*, int*, char, unsigned int, int*, int);
 int pop_paren_arr(int*);
