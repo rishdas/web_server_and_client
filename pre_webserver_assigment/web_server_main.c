@@ -34,7 +34,7 @@ int main(int argc, char *argv[])
     struct sockaddr_in cli_addr;
     int                cli_len;
     
-    signal(SIGINT, int_handler);
+//    signal(SIGINT, int_handler);
     file_name = get_debug_file_name();
     debg_ofp = fopen(file_name, "w");
     free(file_name);
