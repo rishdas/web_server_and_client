@@ -3,18 +3,21 @@
 #include <signal.h>
 
 FILE *debg_ofp;
+int web_serv_sock_fd;
 static volatile int keep_running = 1;
 void int_handler(int sig)
 {
-    char    c;
-    signal(sig, SIG_IGN);
-    printf("\nDo you want to stop the Stark Server? [y/n]");
-    c = getchar();
-    if (c == 'Y' || c == 'y') {
-	keep_running = 0;
-    } else {
-	signal(SIGINT, int_handler);
-    }
+    cleanup(web_serv_sock_fd, debg_ofp);
+    exit(0);
+    /* char    c; */
+    /* signal(sig, SIG_IGN); */
+    /* printf("\nDo you want to stop the Stark Server? [y/n]"); */
+    /* c = getchar(); */
+    /* if (c == 'Y' || c == 'y') { */
+    /* 	keep_running = 0; */
+    /* } else { */
+    /* 	signal(SIGINT, int_handler); */
+    /* } */
 }
 char *get_debug_file_name()
 {
@@ -28,13 +31,13 @@ char *get_debug_file_name()
 int main(int argc, char *argv[])
 {
     char               *file_name;
-    int                web_serv_sock_fd, new_sock_conn;
+    int                new_sock_conn;
     int                port_no;
     int                status;
     struct sockaddr_in cli_addr;
     int                cli_len;
     
-//    signal(SIGINT, int_handler);
+    signal(SIGINT, int_handler);
     file_name = get_debug_file_name();
     debg_ofp = fopen(file_name, "w");
     free(file_name);
