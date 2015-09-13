@@ -40,17 +40,6 @@ int is_persistent(http_packet_info_t req_info)
 	return 0;
     }
 }
-
-int cleanup(int serv_sock_fd, FILE *debg_ofp)
-{
-    if (serv_sock_fd >= 0) {
-	close(serv_sock_fd);
-    }
-    if (debg_ofp != NULL) {
-	fclose(debg_ofp);
-    }
-    return 0;
-}
 			
 int bootstrap_server(int *serv_sock_fd, int port_no, FILE *debg_ofp)
 {
@@ -240,7 +229,7 @@ int wait_for_and_hdl_persistant_conn(int new_sock_conn,
     return status;
 }
     
-int handle_connection(int new_sock_conn, struct sockaddr_in cli_addr,
+int handle_connection(int new_sock_conn, struct sockaddr cli_addr,
 		      int cli_len, FILE *debg_ofp)
 {
     int                   status = 0;

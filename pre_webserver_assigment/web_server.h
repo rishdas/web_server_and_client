@@ -11,5 +11,5 @@
 
 int bootstrap_server(int *serv_sock_fd, int port_no, FILE *debg_ofp);
 int cleanup(int serv_sock_fd, FILE *debg_ofp);
-int handle_connection(int new_sock_conn, struct sockaddr_in cli_addr,
+int handle_connection(int new_sock_conn, struct sockaddr cli_addr,
 		      int cli_len, FILE *debg_ofp);
