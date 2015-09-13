@@ -203,8 +203,8 @@ int wait_for_and_hdl_persistant_conn(int new_sock_conn,
     FD_ZERO(&sock_set);
     timeout.tv_sec = WAIT;
     timeout.tv_usec = 0;
-
-    FD_SET(new_sock_conn, &sock_set);
+    // FD_SET(new_sock_conn, &sock_set);
+    
     /*Respond to the first persistant connection*/
     status = respond_to_http(new_sock_conn, req_info, debg_ofp);
     if (status != 0) {
@@ -212,8 +212,11 @@ int wait_for_and_hdl_persistant_conn(int new_sock_conn,
     }
     while(1)
     {
+	FD_SET(new_sock_conn, &sock_set);
+	fprintf(debg_ofp, "DEBUG: in while loop fd :%d\n", new_sock_conn);
 	status = select(new_sock_conn+1, &sock_set, NULL, NULL, &timeout);
-	if (status == -1) {
+	fprintf(debg_ofp, "DEBUG: post select status %d\n", status);
+	if (status == 0) {
 	    fprintf(debg_ofp, "ERROR: Persistant time out reached\n");
 	    return status;
 	} else {
@@ -226,10 +229,11 @@ int wait_for_and_hdl_persistant_conn(int new_sock_conn,
 		fprintf(debg_ofp, "INFO: Received message\n %s", buf);
 		parse_http_request(buf, &req_info, debg_ofp);
 		status = respond_to_http(new_sock_conn, req_info, debg_ofp);
-		FD_CLR(new_sock_conn, &sock_set);
+
 		/*Reset Time*/
 		timeout.tv_sec = WAIT;
 		timeout.tv_usec = 0;
+		FD_CLR(new_sock_conn, &sock_set);
 	    }
 	}
     }
@@ -248,6 +252,7 @@ int handle_connection(int new_sock_conn, struct sockaddr_in cli_addr,
     status = read(new_sock_conn, buf, 8192);
     if (status < 0) {
 	fprintf(debg_ofp, "ERROR: in reading from socket\n");
+	fflush(debg_ofp);
 	return 1;
     }
     fprintf(debg_ofp, "INFO: Incoming message:\n%s\n",buf);
@@ -255,11 +260,13 @@ int handle_connection(int new_sock_conn, struct sockaddr_in cli_addr,
     if (is_persistent(req_info) != 0) {
 	status = respond_to_http(new_sock_conn, req_info, debg_ofp);
 	fprintf(debg_ofp, "DEBUG: Not Persistant connection\n");
+	fflush(debg_ofp);
 	close(new_sock_conn);
     } else {
 	status = wait_for_and_hdl_persistant_conn(new_sock_conn,
 						  req_info, debg_ofp);
 	fprintf(debg_ofp, "DEBUG: Persistant connection\n");
+	fflush(debg_ofp);
 	close(new_sock_conn);
     }
     return status;

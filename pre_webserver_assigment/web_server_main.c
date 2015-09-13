@@ -64,7 +64,9 @@ int main(int argc, char *argv[])
 			       (socklen_t *) &cli_len);
 	if (new_sock_conn < 0) {
 	    fprintf(debg_ofp, "ERROR: in accepting connection\n");
-	    return 1;
+	    fflush(debg_ofp);
+	    //cleanup(web_serv_sock_fd, debg_ofp);
+	    //return 1;
 	}
 	status = handle_connection(new_sock_conn, cli_addr, cli_len, debg_ofp);
 	if (status != 0){
