@@ -93,18 +93,19 @@ int build_http_get_request(client_info_t req_info,
 			    char *resp_buf, FILE *debg_ofp)
 {
     int    http_version;
- 
+    
     http_version = is_persistent(req_info);
     sprintf(resp_buf, "GET\t/%s\t%s\r\n", req_info.file_name,
 	    (http_version == 0)?"HTTP/1.1":"HTTP/1.0");
     sprintf(resp_buf, "%sHost: %s:%d\r\n", resp_buf,
 	    req_info.server_addr->h_name, req_info.port);
+    sprintf(resp_buf, "%sConnection: %s\r\n", resp_buf,
+	    (http_version == 0)?"keep-alive":"close");
     sprintf(resp_buf, "%sUser-Agent: %s\r\n", resp_buf, "Lannister");
     sprintf(resp_buf, "%sAccept: %s\r\n", resp_buf, "text/html");
     sprintf(resp_buf, "%sAccept-Language: %s\r\n", resp_buf, "en-US,en;q=0.5");
     sprintf(resp_buf, "%sAccept-Encoding: %s\r\n", resp_buf, "gzip, deflate");
-    sprintf(resp_buf, "%sConnection: %s\r\n", resp_buf, "keep-alive");
-
+    
     fprintf(debg_ofp, "INFO: GET Response: \n %s\n", resp_buf);
     return 0;
 }
