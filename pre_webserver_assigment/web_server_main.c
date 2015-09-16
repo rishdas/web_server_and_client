@@ -55,7 +55,7 @@ int main(int argc, char *argv[])
 	cli_len = sizeof(cli_addr);
 	new_sock_conn = accept(web_serv_sock_fd, (struct sockaddr *) &cli_addr,
 			       (socklen_t *) &cli_len);
-	fprintf(debg_ofp, "DEBUG:  Connection accepted : %d", new_sock_conn);
+	fprintf(debg_ofp, "DEBUG:  Connection accepted : %d\n", new_sock_conn);
         
 	if (new_sock_conn < 0) {
 	    fprintf(debg_ofp, "ERROR: in accepting connection\n");

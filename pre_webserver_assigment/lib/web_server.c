@@ -16,16 +16,42 @@ typedef struct http_packet_info_
     char method[MAXLINE];
     char uri[MAXLINE];
     char version[MAXLINE];
+    int  is_keepalive;
 } http_packet_info_t;
 
 int parse_http_request(char *req, http_packet_info_t *req_info,
 		       FILE *debg_ofp)
 {
-    sscanf(req, "%s %s %s", req_info->method,
-	   req_info->uri, req_info->version);
+    char connection_status[MAXLINE];
+    char parsed_field[MAXLINE];
+    char parsed_value[MAXLINE];
+    int  bytes_read;
+    int  connection_found = 0;
+    
+    sscanf(req, "%s %s %s\r\n%n", req_info->method,
+	   req_info->uri, req_info->version, &bytes_read);
+    while(connection_found == 0) {
+	req = req + bytes_read;
+	sscanf(req, "%s %s%n", parsed_field, parsed_value, &bytes_read);
+	if (strncmp("Connection:", parsed_field, MAXLINE) == 0) {
+	    connection_found = 1;
+	}
+    }
+    if (connection_found == 1) {
+	if (strncmp(parsed_value, "keep-alive",
+		    strlen(parsed_value)) == 0) {
+	    req_info->is_keepalive = 0;
+	} else {
+	    req_info->is_keepalive = 1;
+	}
+    }
+
     fprintf(debg_ofp,
-	    "INFO: Parsed Info- Method: %s\tURI: %s\tVersion: %s\t\n",
-	    req_info->method, req_info->uri, req_info->version);
+	    "INFO: Parsed Info- Method: %s\tURI: %s\t" \
+            "Version: %s\tConnection: %s\n",
+	    req_info->method, req_info->uri,
+	    req_info->version,
+	    (req_info->is_keepalive == 0)?"keep-alive":"close");
     return 0;
 }
 
@@ -208,23 +234,26 @@ int wait_for_and_hdl_persistant_conn(int new_sock_conn,
 	if (status == 0) {
 	    fprintf(debg_ofp, "ERROR: Persistant time out reached\n");
 	    return status;
-	} else {
-	    if (FD_ISSET(new_sock_conn, &sock_set)) {
-		recvd_bytes = recv(new_sock_conn, buf, sizeof(buf), 0);
-		if (recvd_bytes <= 0) {
-		    fprintf(debg_ofp, "ERROR: Reading from socket\n");
-		}
-		buf[recvd_bytes]='\0';
-		fprintf(debg_ofp, "INFO: Received message\n %s", buf);
-		parse_http_request(buf, &req_info, debg_ofp);
-		status = respond_to_http(new_sock_conn, req_info, debg_ofp);
-
-		/*Reset Time*/
-		timeout.tv_sec = WAIT;
-		timeout.tv_usec = 0;
-		FD_CLR(new_sock_conn, &sock_set);
+	} 
+	if (FD_ISSET(new_sock_conn, &sock_set)) {
+	    recvd_bytes = recv(new_sock_conn, buf, sizeof(buf), 0);
+	    if (recvd_bytes <= 0) {
+		fprintf(debg_ofp, "ERROR: Reading from socket\n");
 	    }
+	    buf[recvd_bytes]='\0';
+	    fprintf(debg_ofp, "INFO: Received message\n %s", buf);
+	    parse_http_request(buf, &req_info, debg_ofp);
+	    status = respond_to_http(new_sock_conn, req_info, debg_ofp);
+
+	    /*Reset Time*/
+	    timeout.tv_sec = WAIT;
+	    timeout.tv_usec = 0;
+	    FD_CLR(new_sock_conn, &sock_set);
 	}
+	if (req_info.is_keepalive != 0) {
+	    return status;
+	}
+	
     }
     return status;
 }
