@@ -249,6 +249,7 @@ int wait_for_and_hdl_persistant_conn(int new_sock_conn,
 	    /*Reset Time*/
 	    timeout.tv_sec = WAIT;
 	    timeout.tv_usec = 0;
+	    bzero(buf, 8192);
 	    FD_CLR(new_sock_conn, &sock_set);
 	}
 	if (req_info.is_keepalive != 0) {
@@ -290,9 +291,6 @@ int handle_connection(int new_sock_conn, struct sockaddr cli_addr,
 		status);
 	fflush(debg_ofp);
 	close(new_sock_conn);
-	fprintf(debg_ofp, "DEBUG-2: Persistant connection status : %d\n",
-		status);
-	fflush(debg_ofp);
     }
     return status;
 }
