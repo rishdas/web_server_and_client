@@ -233,6 +233,7 @@ int wait_for_and_hdl_persistant_conn(int new_sock_conn,
 	fprintf(debg_ofp, "DEBUG: post select status %d\n", status);
 	if (status == 0) {
 	    fprintf(debg_ofp, "ERROR: Persistant time out reached\n");
+	    fflush(debg_ofp);
 	    return status;
 	} 
 	if (FD_ISSET(new_sock_conn, &sock_set)) {
@@ -251,10 +252,12 @@ int wait_for_and_hdl_persistant_conn(int new_sock_conn,
 	    FD_CLR(new_sock_conn, &sock_set);
 	}
 	if (req_info.is_keepalive != 0) {
+	    fflush(debg_ofp);
 	    return status;
 	}
 	
     }
+    fflush(debg_ofp);
     return status;
 }
     

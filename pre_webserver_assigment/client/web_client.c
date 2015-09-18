@@ -102,17 +102,22 @@ int is_persistent(client_info_t req_info)
 int build_http_get_request(client_info_t req_info,
 			    char *resp_buf, FILE *debg_ofp)
 {
-    int    http_version;
-    char   file_name[8192];
-    int    status;
+    int           http_version;
+    char          file_name[8192];
+    int           status;
+    static int    get_once = 0;
     if (req_info.is_filename_in_disk == 0) {
 	status = fscanf(ifp, "%s\n", file_name);
 	if (status <= 0) {
 	    return -1;
 	}
     } else {
+	if (get_once == 1) {
+	    return -1;
+	}
 	strncpy(file_name, req_info.file_name,
 		strlen(req_info.file_name));
+	get_once = 1;
     }
     
     http_version = is_persistent(req_info);
@@ -142,22 +147,28 @@ int get_from_server_persistant(int client_sock_fd, client_info_t client_info,
 	fprintf(debg_ofp, "ERROR: Connecting to server\n");
 	exit(1);
     }
-    status = build_http_get_request(client_info, buf, debg_ofp);
-    status = write(client_sock_fd, buf, strlen(buf));
-    if (status < 0) {
-	fprintf(stderr, "Error writing into the socket\n");
-	fprintf(debg_ofp, "Error writing into the socket\n");
-	exit(1);
+    while (1) {
+	status = build_http_get_request(client_info, buf, debg_ofp);
+	if (status == -1) {
+	    fprintf(debg_ofp, "Error building request silently exiting\n");
+	    return -1;
+	}
+	status = write(client_sock_fd, buf, strlen(buf));
+	if (status < 0) {
+	    fprintf(stderr, "Error writing into the socket\n");
+	    fprintf(debg_ofp, "Error writing into the socket\n");
+	    exit(1);
+	}
+	bzero(buf, 8192);
+	status = read(client_sock_fd, buf, 8192);
+	if (status < 0) {
+	    fprintf(stderr, "Error reading from the socket\n");
+	    fprintf(debg_ofp, "Error reading into the socket\n");
+	    exit(1);
+	}
+	fprintf(stdout, "Incoming Message: \n %s\n", buf);
+	fprintf(debg_ofp, "Incoming Message: \n %s\n", buf);
     }
-    bzero(buf, 8192);
-    status = read(client_sock_fd, buf, 8192);
-    if (status < 0) {
-	fprintf(stderr, "Error reading from the socket\n");
-	fprintf(debg_ofp, "Error reading into the socket\n");
-	exit(1);
-    }
-    fprintf(stdout, "Incoming Message: \n %s", buf);
-    fprintf(debg_ofp, "Incoming Message: \n %s", buf);
     return 0;
 }
 
