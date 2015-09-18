@@ -286,7 +286,8 @@ int handle_connection(int new_sock_conn, struct sockaddr cli_addr,
     } else {
 	status = wait_for_and_hdl_persistant_conn(new_sock_conn,
 						  req_info, debg_ofp);
-	fprintf(debg_ofp, "DEBUG: Persistant connection\n");
+	fprintf(debg_ofp, "DEBUG: Persistant connection status : %d\n",
+		status);
 	fflush(debg_ofp);
 	close(new_sock_conn);
     }

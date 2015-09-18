@@ -37,6 +37,7 @@ int main(int argc, char *argv[])
     if (argc < 2) {
 	fprintf(debg_ofp, "No port no entered hence exiting\n");
 	fprintf(stderr, "Very Few Arguments enter port no\n");
+	fflush(debg_ofp);
 	cleanup(-1, debg_ofp);
 	exit(1);
     }
@@ -45,6 +46,7 @@ int main(int argc, char *argv[])
     if (status != 0){
 	fprintf(debg_ofp, "ERROR in binding server port\n");
 	fprintf(stderr, "ERROR bootstrapping server see log files for details\n");
+	fflush(debg_ofp);
 	cleanup(web_serv_sock_fd, debg_ofp);
 	exit(status);
     }
@@ -68,8 +70,10 @@ int main(int argc, char *argv[])
 	    fprintf(debg_ofp, "ERROR in accepting connection\n");
 	    fprintf(stderr,
 		    "ERROR in accepting connection see log files for details\n");
+	    fflush(debg_ofp);
 	    continue;
 	}
     }
+    fflush(debg_ofp);
     cleanup(web_serv_sock_fd, debg_ofp);
 }
