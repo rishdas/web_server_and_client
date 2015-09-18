@@ -288,9 +288,11 @@ int handle_connection(int new_sock_conn, struct sockaddr cli_addr,
 						  req_info, debg_ofp);
 	fprintf(debg_ofp, "DEBUG: Persistant connection status : %d\n",
 		status);
+	fflush(debg_ofp);
 	close(new_sock_conn);
 	fprintf(debg_ofp, "DEBUG-2: Persistant connection status : %d\n",
 		status);
+	fflush(debg_ofp);
     }
     return status;
 }
