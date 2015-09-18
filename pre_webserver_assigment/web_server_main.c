@@ -74,6 +74,5 @@ int main(int argc, char *argv[])
 	    continue;
 	}
     }
-    fflush(debg_ofp);
     cleanup(web_serv_sock_fd, debg_ofp);
 }
