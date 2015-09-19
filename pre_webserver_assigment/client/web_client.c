@@ -177,29 +177,53 @@ int get_from_server_non_persistant(int client_sock_fd, client_info_t client_info
 {
     char               buf[8192];
     int                status;
-    status = connect(client_sock_fd, (struct sockaddr*)&server_addr,
-		     sizeof(server_addr)); 
-    if (status < 0) {
-	fprintf(stderr, "ERROR: Connecting to server\n");
-	fprintf(debg_ofp, "ERROR: Connecting to server\n");
-	exit(1);
+    int                first_time = 0;
+    while(1) {
+	if(first_time != 0) {
+	    status = bootstrap_client(&client_sock_fd, client_info,
+				      &server_addr, debg_ofp);
+	    if(status != 0) {
+		fprintf(stderr, "ERROR: Creating a socket\n");
+		fprintf(debg_ofp, "ERROR: Creating a socket\n");
+		fclose(debg_ofp);
+		exit(1);
+	    }
+	}
+	status = connect(client_sock_fd, (struct sockaddr*)&server_addr,
+			 sizeof(server_addr)); 
+	if (status < 0) {
+	    fprintf(stderr, "ERROR: Connecting to server\n");
+	    fprintf(debg_ofp, "ERROR: Connecting to server\n");
+	    fclose(debg_ofp);
+	    exit(1);
+	}
+	status = build_http_get_request(client_info, buf, debg_ofp);
+	if (status == -1) {
+	    fprintf(debg_ofp, "Error building request silently exiting\n");
+	    close(client_sock_fd);
+	    return 0;
+	}
+	status = write(client_sock_fd, buf, strlen(buf));
+	if (status < 0) {
+	    fprintf(stderr, "Error writing into the socket\n");
+	    fprintf(debg_ofp, "Error writing into the socket\n");
+	    close(client_sock_fd);
+	    return -1;
+	}
+	bzero(buf, 8192);
+	status = read(client_sock_fd, buf, 8192);
+	if (status < 0) {
+	    fprintf(stderr, "Error reading from the socket\n");
+	    fprintf(debg_ofp, "Error reading into the socket\n");
+	    close(client_sock_fd);
+	    return -1;
+	}
+	fprintf(stdout, "Incoming Message: \n %s", buf);
+	fprintf(debg_ofp, "Incoming Message: \n %s", buf);
+	bzero(buf, 8192);
+	close(client_sock_fd);
+	first_time = 1;
     }
-    status = build_http_get_request(client_info, buf, debg_ofp);
-    status = write(client_sock_fd, buf, strlen(buf));
-    if (status < 0) {
-	fprintf(stderr, "Error writing into the socket\n");
-	fprintf(debg_ofp, "Error writing into the socket\n");
-	exit(1);
-    }
-    bzero(buf, 8192);
-    status = read(client_sock_fd, buf, 8192);
-    if (status < 0) {
-	fprintf(stderr, "Error reading from the socket\n");
-	fprintf(debg_ofp, "Error reading into the socket\n");
-	exit(1);
-    }
-    fprintf(stdout, "Incoming Message: \n %s", buf);
-    fprintf(debg_ofp, "Incoming Message: \n %s", buf);
     return 0;
 }
 int main(int argc, char *argv[])
@@ -215,7 +239,7 @@ int main(int argc, char *argv[])
     status = parse_cmd_line_args(argc, argv, &client_info, debg_ofp);
     if(status != 0) {
 	fprintf(stderr, "ERROR: Invalid arguments check log\n");
-	cleanup(client_sock_fd, debg_ofp);
+	fclose(debg_ofp);
 	exit(1);
     }
     status = bootstrap_client(&client_sock_fd, client_info,
@@ -223,6 +247,7 @@ int main(int argc, char *argv[])
     if(status != 0) {
 	fprintf(stderr, "ERROR: Creating a socket\n");
 	fprintf(debg_ofp, "ERROR: Creating a socket\n");
+	fclose(debg_ofp);
 	exit(1);
     }
     if (is_persistent(client_info) == 0) {
@@ -233,7 +258,7 @@ int main(int argc, char *argv[])
 				       server_addr,debg_ofp);
     }
    
-    cleanup(client_sock_fd, debg_ofp);
+    fclose(debg_ofp);
     return 0;
 }
 
