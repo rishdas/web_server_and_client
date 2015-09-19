@@ -47,21 +47,6 @@ int parse_http_request(char *req, http_packet_info_t *req_info,
     } else {
 	req_info->is_keepalive = 1;
     }
-    /* while(connection_found == 0) { */
-    /* 	req = req + bytes_read; */
-    /* 	sscanf(req, "%s %s%n", parsed_field, parsed_value, &bytes_read); */
-    /* 	if (strncmp("Connection:", parsed_field, MAXLINE) == 0) { */
-    /* 	    connection_found = 1; */
-    /* 	} */
-    /* } */
-    /* if (connection_found == 1) { */
-    /* 	if (strncmp(parsed_value, "keep-alive", */
-    /* 		    strlen(parsed_value)) == 0) { */
-    /* 	    req_info->is_keepalive = 0; */
-    /* 	} else { */
-    /* 	    req_info->is_keepalive = 1; */
-    /* 	} */
-    /* } */
 
     fprintf(debg_ofp,
 	    "INFO: Parsed Info- Method: %s\tURI: %s\t" \
