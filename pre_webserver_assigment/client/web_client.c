@@ -10,6 +10,7 @@
 FILE *debg_ofp;
 FILE     *ifp;
 int  client_sock_fd;
+#define MAX_BUFFER 2048000
 typedef struct client_info_
 {
     int            port;
@@ -103,7 +104,7 @@ int build_http_get_request(client_info_t req_info,
 			    char *resp_buf, FILE *debg_ofp)
 {
     int           http_version;
-    char          file_name[8192];
+    char          file_name[MAX_BUFFER];
     int           status;
     static int    get_once = 0;
     if (req_info.is_filename_in_disk == 0) {
@@ -138,7 +139,7 @@ int build_http_get_request(client_info_t req_info,
 int get_from_server_persistant(int client_sock_fd, client_info_t client_info,
 			       struct sockaddr_in server_addr, FILE *debg_ofp)
 {
-    char               buf[8192];
+    char               buf[MAX_BUFFER];
     int                status;
     status = connect(client_sock_fd, (struct sockaddr*)&server_addr,
 		     sizeof(server_addr)); 
@@ -159,8 +160,8 @@ int get_from_server_persistant(int client_sock_fd, client_info_t client_info,
 	    fprintf(debg_ofp, "Error writing into the socket\n");
 	    exit(1);
 	}
-	bzero(buf, 8192);
-	status = read(client_sock_fd, buf, 8192);
+	bzero(buf, MAX_BUFFER);
+	status = read(client_sock_fd, buf, MAX_BUFFER);
 	if (status < 0) {
 	    fprintf(stderr, "Error reading from the socket\n");
 	    fprintf(debg_ofp, "Error reading into the socket\n");
@@ -175,7 +176,7 @@ int get_from_server_persistant(int client_sock_fd, client_info_t client_info,
 int get_from_server_non_persistant(int client_sock_fd, client_info_t client_info,
 				   struct sockaddr_in server_addr, FILE *debg_ofp)
 {
-    char               buf[8192];
+    char               buf[MAX_BUFFER];
     int                status;
     int                first_time = 0;
     while(1) {
@@ -210,8 +211,8 @@ int get_from_server_non_persistant(int client_sock_fd, client_info_t client_info
 	    close(client_sock_fd);
 	    return -1;
 	}
-	bzero(buf, 8192);
-	status = read(client_sock_fd, buf, 8192);
+	bzero(buf, MAX_BUFFER);
+	status = read(client_sock_fd, buf, MAX_BUFFER);
 	if (status < 0) {
 	    fprintf(stderr, "Error reading from the socket\n");
 	    fprintf(debg_ofp, "Error reading into the socket\n");
@@ -220,7 +221,7 @@ int get_from_server_non_persistant(int client_sock_fd, client_info_t client_info
 	}
 	fprintf(stdout, "Incoming Message: \n %s", buf);
 	fprintf(debg_ofp, "Incoming Message: \n %s", buf);
-	bzero(buf, 8192);
+	bzero(buf, MAX_BUFFER);
 	close(client_sock_fd);
 	first_time = 1;
     }

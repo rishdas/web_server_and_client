@@ -11,6 +11,7 @@
 
 #define MAXLINE 2000
 #define WAIT    10
+#define MAX_BUFFER 2048000
 typedef struct http_packet_info_
 {
     char method[MAXLINE];
@@ -166,7 +167,7 @@ int build_http_get_response_persitant(http_packet_info_t req_info,
 
 int build_http_get_err_response(char *resp_buf, FILE *debg_ofp)
 {
-    char resp_msg[8192];
+    char resp_msg[MAX_BUFFER];
     sprintf(resp_msg,"<html><title>Arya Error</title>" \
 	    "<body><h1>404 Page not Found</h1></body></html>");
   
@@ -182,7 +183,7 @@ int build_http_get_err_response(char *resp_buf, FILE *debg_ofp)
 int respond_to_http(int conn_sock_fd,
 		    http_packet_info_t req_info, FILE *debg_ofp)
 {
-    char resp_buf[8192];
+    char resp_buf[MAX_BUFFER];
     int  status;
     if (is_persistent(req_info) != 0) {
 	status = build_http_get_response(req_info, resp_buf, debg_ofp);
@@ -212,7 +213,7 @@ int wait_for_and_hdl_persistant_conn(int new_sock_conn,
     struct timeval    timeout;
     fd_set            sock_set;
     int               status;
-    char              buf[8192];
+    char              buf[MAX_BUFFER];
     ssize_t           recvd_bytes;
 
     FD_ZERO(&sock_set);
@@ -249,7 +250,7 @@ int wait_for_and_hdl_persistant_conn(int new_sock_conn,
 	    /*Reset Time*/
 	    timeout.tv_sec = WAIT;
 	    timeout.tv_usec = 0;
-	    bzero(buf, 8192);
+	    bzero(buf, MAX_BUFFER);
 	    FD_CLR(new_sock_conn, &sock_set);
 	}
 	if (req_info.is_keepalive != 0) {
@@ -266,12 +267,12 @@ int handle_connection(int new_sock_conn, struct sockaddr cli_addr,
 		      int cli_len, FILE *debg_ofp)
 {
     int                   status = 0;
-    char                  buf[8192];
+    char                  buf[MAX_BUFFER];
     http_packet_info_t    req_info;
 
   
-    bzero(buf, 8192);
-    status = recv(new_sock_conn, buf, 8192, 0);
+    bzero(buf, MAX_BUFFER);
+    status = recv(new_sock_conn, buf, MAX_BUFFER, 0);
     if (status < 0 || strncmp(buf, "", strlen(buf))==0) {
 	fprintf(debg_ofp, "ERROR: in reading from socket\n");
 	fflush(debg_ofp);
