@@ -6,6 +6,7 @@
 #include<netinet/in.h>
 #include<unistd.h>
 #include<string.h>
+#include<signal.h>
 
 FILE *debg_ofp;
 FILE     *ifp;
@@ -235,7 +236,7 @@ int main(int argc, char *argv[])
     char               file_name[] = "web_client_trace.log";
     struct sockaddr_in server_addr;
     
-
+    signal(SIGPIPE, SIG_IGN);
     debg_ofp = fopen(file_name, "w");
     status = parse_cmd_line_args(argc, argv, &client_info, debg_ofp);
     if(status != 0) {

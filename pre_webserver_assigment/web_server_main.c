@@ -21,6 +21,18 @@ void int_handler(int sig)
     cleanup(web_serv_sock_fd, debg_ofp);
     exit(0);
 }
+void ignore_sigpipe(void)
+{
+    struct sigaction act;
+    int status;
+    memset(&act, 0, sizeof(act));
+    act.sa_handler = SIG_IGN;
+    act.sa_flags = SA_RESTART;
+    status = sigaction(SIGPIPE, &act, NULL);
+    if (status) {
+        fprintf(stderr, "sigaction\n");
+    }
+}
 
 int main(int argc, char *argv[])
 {
@@ -32,7 +44,7 @@ int main(int argc, char *argv[])
     int                cli_len;
     
     signal(SIGINT, int_handler);
-    signal(SIGPIPE, SIG_IGN);
+    ignore_sigpipe();
     debg_ofp = fopen(file_name, "w");
 
     if (argc < 2) {
