@@ -5,7 +5,7 @@
 #include<sys/types.h>
 #include<netinet/in.h>
 #include<unistd.h>
-#include<strings.h>
+#include<string.h>
 
 FILE *debg_ofp;
 FILE     *ifp;
