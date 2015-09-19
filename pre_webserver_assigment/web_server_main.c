@@ -32,6 +32,7 @@ int main(int argc, char *argv[])
     int                cli_len;
     
     signal(SIGINT, int_handler);
+    signal(SIGPIPE, SIG_IGN);
     debg_ofp = fopen(file_name, "w");
 
     if (argc < 2) {
