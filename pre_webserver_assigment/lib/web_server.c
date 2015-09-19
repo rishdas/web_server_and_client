@@ -271,7 +271,7 @@ int handle_connection(int new_sock_conn, struct sockaddr cli_addr,
 
   
     bzero(buf, 8192);
-    status = read(new_sock_conn, buf, 8192);
+    status = recv(new_sock_conn, buf, 8192, 0);
     if (status < 0) {
 	fprintf(debg_ofp, "ERROR: in reading from socket\n");
 	fflush(debg_ofp);
