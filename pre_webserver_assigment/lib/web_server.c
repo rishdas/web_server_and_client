@@ -193,11 +193,11 @@ int respond_to_http(int conn_sock_fd,
     switch(status)
     {
     case 0:
-	status = send(conn_sock_fd, resp_buf, strlen(resp_buf), 0);
+	send(conn_sock_fd, resp_buf, strlen(resp_buf), 0);
 	break;
     case 1:
 	build_http_get_err_response(resp_buf, debg_ofp);
-	status = send(conn_sock_fd, resp_buf, strlen(resp_buf), 0);
+	send(conn_sock_fd, resp_buf, strlen(resp_buf), 0);
 	break;
     default:
 	return status;
