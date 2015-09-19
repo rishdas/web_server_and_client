@@ -26,26 +26,42 @@ int parse_http_request(char *req, http_packet_info_t *req_info,
     char connection_status[MAXLINE];
     char parsed_field[MAXLINE];
     char parsed_value[MAXLINE];
+    char *pos;
     int  bytes_read;
     int  connection_found = 0;
     
     sscanf(req, "%s %s %s\r\n%n", req_info->method,
 	   req_info->uri, req_info->version, &bytes_read);
-    while(connection_found == 0) {
-	req = req + bytes_read;
-	sscanf(req, "%s %s%n", parsed_field, parsed_value, &bytes_read);
-	if (strncmp("Connection:", parsed_field, MAXLINE) == 0) {
-	    connection_found = 1;
-	}
+    pos = strstr(req, "Connection: ");
+    if (pos != NULL) {
+	connection_found = 1;
     }
     if (connection_found == 1) {
-	if (strncmp(parsed_value, "keep-alive",
-		    strlen(parsed_value)) == 0) {
+	pos = pos + strlen("Connection: ");
+	if (strncmp(pos, "keep-alive",
+		    strlen("keep-alive")) == 0) {
 	    req_info->is_keepalive = 0;
 	} else {
 	    req_info->is_keepalive = 1;
 	}
+    } else {
+	req_info->is_keepalive = 1;
     }
+    /* while(connection_found == 0) { */
+    /* 	req = req + bytes_read; */
+    /* 	sscanf(req, "%s %s%n", parsed_field, parsed_value, &bytes_read); */
+    /* 	if (strncmp("Connection:", parsed_field, MAXLINE) == 0) { */
+    /* 	    connection_found = 1; */
+    /* 	} */
+    /* } */
+    /* if (connection_found == 1) { */
+    /* 	if (strncmp(parsed_value, "keep-alive", */
+    /* 		    strlen(parsed_value)) == 0) { */
+    /* 	    req_info->is_keepalive = 0; */
+    /* 	} else { */
+    /* 	    req_info->is_keepalive = 1; */
+    /* 	} */
+    /* } */
 
     fprintf(debg_ofp,
 	    "INFO: Parsed Info- Method: %s\tURI: %s\t" \
