@@ -12,7 +12,8 @@
 
 #define MAXLINE 20
 #define WAIT    10
-#define MAX_BUFFER 1000
+#define MAX_BUFFER 1200
+#define MAX_PAYLOAD 1000
 
 FILE *debg_ofp;
 int udp_serv_sock_fd;
@@ -136,6 +137,10 @@ int build_http_get_response(http_packet_info_t req_info,
     }
     uri_file_fd = fileno(uri_file_p);
     fstat(uri_file_fd, &f_stat);
+    if (f_stat.st_size>MAX_PAYLOAD) {
+	fclose(uri_file_p);
+	return 2;
+    }
     sprintf(resp_buf, "HTTP/1.0 200 OK\r\n");
     sprintf(resp_buf, "%sServer: Stark Web Server\r\n", resp_buf);
     sprintf(resp_buf, "%sContent-length: %lld\r\n", resp_buf, f_stat.st_size);
@@ -148,6 +153,66 @@ int build_http_get_response(http_packet_info_t req_info,
     sprintf(resp_buf, "%s%s\r\n", resp_buf, file_in_str);
     fprintf(debg_ofp, "INFO: GET Response: \n %s\n", resp_buf);
     return 0;
+}
+int segment_and_send_response(int conn_sock_fd, http_packet_info_t req_info,
+			      struct sockaddr_in cli_addr, int cli_len,
+			      FILE *debg_ofp)
+{
+    int         i;
+    char        *file_name;
+    int         status=0;
+    FILE        *uri_file_p;
+    int         uri_file_fd;
+    struct stat f_stat;
+    char        *file_in_str;
+    int         no_of_segments;
+    int         remainder = 0;
+    char        resp_buf[MAX_BUFFER];
+    
+    file_name = get_file_from_uri(req_info.uri);
+    uri_file_p = fopen(file_name, "r");
+    if (uri_file_p == NULL) {
+	fprintf(debg_ofp, "ERROR opening file %s not found\n", file_name);
+	return 1;
+    }
+    uri_file_fd = fileno(uri_file_p);
+    fstat(uri_file_fd, &f_stat);
+    no_of_segments = f_stat.st_size/MAX_PAYLOAD;
+    if (f_stat.st_size % MAX_PAYLOAD != 0) {
+	no_of_segments = no_of_segments + 1;
+	remainder = f_stat.st_size % MAX_PAYLOAD;
+    }
+    fseek(uri_file_p, 0, SEEK_SET);
+    file_in_str = malloc(MAX_PAYLOAD);
+    for (i = 0; i<no_of_segments; i++)
+    {
+	sprintf(resp_buf, "HTTP/1.0 200 OK\r\n");
+	sprintf(resp_buf, "%sServer: Stark Web Server\r\n", resp_buf);
+	sprintf(resp_buf, "%sContent-length: %lld\r\n", resp_buf, f_stat.st_size);
+	sprintf(resp_buf, "%sContent-type: %s\r\n", resp_buf, "text/html");
+	sprintf(resp_buf, "%sSegment: %d %d\r\n\r\n",
+		resp_buf, i+1, no_of_segments);
+
+        if (i == (no_of_segments-1)) {
+	    if (remainder != 0) {
+		fread(file_in_str, 1, remainder, uri_file_p);
+	    } else {
+		fread(file_in_str, 1, MAX_PAYLOAD, uri_file_p);
+	    }
+	} else {
+	    fread(file_in_str, 1, MAX_PAYLOAD, uri_file_p);
+	}
+	sprintf(resp_buf, "%s%s\r\n", resp_buf, file_in_str);
+	status = sendto(conn_sock_fd, resp_buf, strlen(resp_buf),
+			0, (struct sockaddr *)&cli_addr, cli_len);
+	fprintf(debg_ofp, "INFO: GET Response: \n %s\n", resp_buf);
+	bzero(resp_buf, MAX_BUFFER);
+	bzero(file_in_str, MAX_PAYLOAD);
+    }
+    free(file_in_str);
+    fclose(uri_file_p);
+    return 0;
+    
 }
 
 int respond_to_http(int conn_sock_fd, http_packet_info_t req_info,
@@ -168,6 +233,10 @@ int respond_to_http(int conn_sock_fd, http_packet_info_t req_info,
 	status = sendto(conn_sock_fd, resp_buf, strlen(resp_buf),
 			0, (struct sockaddr *)&cli_addr, cli_len);
 	break;
+    case 2:
+	/*In case file requested is more than datagram buffer*/
+	segment_and_send_response(conn_sock_fd, req_info,
+				  cli_addr, cli_len, debg_ofp);
     default:
 	return status;
     }

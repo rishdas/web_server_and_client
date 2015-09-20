@@ -118,7 +118,57 @@ int build_http_get_request(client_info_t req_info,
     fprintf(debg_ofp, "INFO: GET Response: \n %s\n", resp_buf);
     return 0;
 }
-
+int get_seg_no_max_seg_no(char *buf, int *seg_no,
+			  int *max_seg_no, FILE *debg_ofp)
+{
+    char *pos;
+    char segment_no[5];
+    char max_segment_no[5];
+    pos = strstr(buf, "Segment: ");
+    if (pos == NULL) {
+	return 1;
+    }
+    pos = pos + strlen("Segment: ");
+    sscanf(pos, "%s %s\r\n", segment_no, max_segment_no);
+    fprintf(stdout, "\nSegment no: %s  Max Segment No: %s\n",
+	    segment_no, max_segment_no);
+    *seg_no = atoi(segment_no);
+    *max_seg_no = atoi(max_segment_no);
+    fprintf(stdout, "\nSegment no: %d  Max Segment No: %d\n",
+	    *seg_no, *max_seg_no);
+    return 0;
+}
+    
+int check_and_recieve_further_segments(int client_sock_fd,
+				       char *buf, FILE *debg_ofp)
+{
+    int seg_no;
+    int max_seg_no;
+    int status;
+    status =
+	get_seg_no_max_seg_no(buf , &seg_no, &max_seg_no, debg_ofp);
+    if (status == 1) {
+	return status;
+    }
+    bzero(buf, MAX_BUFFER);
+    while (seg_no < max_seg_no)
+    {
+	status = recvfrom(client_sock_fd, buf, MAX_BUFFER, 0, NULL, NULL);
+	if (status < 0) {
+	    fprintf(stderr, "Error reading from the socket\n");
+	    fprintf(debg_ofp, "Error reading into the socket\n");
+	    close(client_sock_fd);
+	    return -1;
+	}
+	fprintf(stdout, "Incoming Message: \n %s", buf);
+	fprintf(debg_ofp, "Incoming Message: \n %s", buf);
+	status =
+	    get_seg_no_max_seg_no(buf, &seg_no, &max_seg_no, debg_ofp);
+	bzero(buf, MAX_BUFFER);
+    }
+    
+    return 0;
+}
 int get_from_server(int client_sock_fd, client_info_t client_info,
 		    struct sockaddr_in server_addr, FILE *debg_ofp)
 {
@@ -160,6 +210,14 @@ int get_from_server(int client_sock_fd, client_info_t client_info,
 	}
 	fprintf(stdout, "Incoming Message: \n %s", buf);
 	fprintf(debg_ofp, "Incoming Message: \n %s", buf);
+	status = check_and_recieve_further_segments(client_sock_fd,
+						    buf, debg_ofp);
+	if (status == 1) {
+	    continue;
+	}
+	if (status == -1) {
+	    return status;
+	}
 	bzero(buf, MAX_BUFFER);
 	close(client_sock_fd);
 	first_time = 1;
