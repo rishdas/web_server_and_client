@@ -247,6 +247,11 @@ int wait_for_and_hdl_persistant_conn(int new_sock_conn,
 	    fprintf(debg_ofp, "INFO: Received message\n %s", buf);
 	    parse_http_request(buf, &req_info, debg_ofp);
 	    status = respond_to_http(new_sock_conn, req_info, debg_ofp);
+	    if(req_info.is_keepalive == 1) {
+		fprintf(debg_ofp, "ERROR: Rishi Recieved a Close Connection\n");
+		fflush(debg_ofp);
+		return status;
+	    }
 
 	    /*Reset Time*/
 	    timeout.tv_sec = WAIT;
