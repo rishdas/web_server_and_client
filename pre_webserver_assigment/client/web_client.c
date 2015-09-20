@@ -143,6 +143,21 @@ int build_http_get_request(client_info_t req_info,
     fprintf(debg_ofp, "INFO: GET Request: \n %s\n", resp_buf);
     return 0;
 }
+
+int get_content_length(char *buf)
+{
+    char *pos;
+    char length[10];
+    int  len;
+
+    pos = strstr(buf, "Content-length: ");
+    pos = pos + strlen("Content-length: ");
+    sscanf(pos, "%s\r\n", length);
+    len = atoi(length);
+    fprintf(stdout, "Rishi: %d\n", len);
+    return len;
+}
+
 int get_from_server_persistant(int client_sock_fd, client_info_t client_info,
 			       struct sockaddr_in server_addr, FILE *debg_ofp)
 {
@@ -150,6 +165,9 @@ int get_from_server_persistant(int client_sock_fd, client_info_t client_info,
     int                status;
     struct timeval     recv_time, reply_time;
     long               elapsed;
+    int                ft = 0;
+    int                content_length, no_bytes_recieved;
+
     
     status = connect(client_sock_fd, (struct sockaddr*)&server_addr,
 		     sizeof(server_addr)); 
@@ -176,7 +194,8 @@ int get_from_server_persistant(int client_sock_fd, client_info_t client_info,
 	    exit(1);
 	}
 	bzero(buf, MAX_BUFFER);
-	while(status != 0) {
+	no_bytes_recieved = 0;
+	do {
 	    status = recv(client_sock_fd, buf, MAX_BUFFER, 0);
 	    if (status < 0) {
 		fprintf(stderr, "Error reading from the socket\n");
@@ -184,13 +203,15 @@ int get_from_server_persistant(int client_sock_fd, client_info_t client_info,
 		bzero(buf, MAX_BUFFER);
 		continue;
 	    }
-	    if (strncmp(buf, "",strlen(buf))==0) {
-		continue;
+	    no_bytes_recieved = no_bytes_recieved + status;
+	    if (ft == 0) {
+		content_length = get_content_length(buf);
+		ft = 1;
 	    }
 	    fprintf(stdout, "Incoming Message: \n %s\n", buf);
 	    fprintf(debg_ofp, "Incoming Message: \n %s\n", buf);
 	    bzero(buf, MAX_BUFFER);
-	}
+	} while (no_bytes_recieved < content_length);
     }
     return 0;
 }
@@ -243,7 +264,7 @@ int get_from_server_non_persistant(int client_sock_fd, client_info_t client_info
 	    return -1;
 	}
 	bzero(buf, MAX_BUFFER);
-	while (status != 0) {
+	while(status != 0) {
 	    status = recv(client_sock_fd, buf, MAX_BUFFER, 0);
 	    if (status < 0) {
 		fprintf(stderr, "Error reading from the socket\n");
