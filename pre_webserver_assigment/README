@@ -1,0 +1,52 @@
+####HTTP Web Server, Client and UDP variant of both#####
+-----Stark Server and Lannister client---
+
+
+$tar xvf stark_package.tar
+$cd stark_package
+----Build Server----
+
+$cd lib
+$make
+$cd ..
+$make
+$export LD_LIBRARY_PATH=$PWD/lib:$LD_LIBRARY_PATH
+Run the server--
+$./web_server.bin 20010 -- in case silo please choose a port higher than 20000
+
+Note: After closing the server if you want to monitor logs a log file with extension .log will be genrated.
+
+----Build Client----
+$cd $ROOT -- as in the root of untared directory
+$cd client
+$make
+$./web_client.bin silo.soic.indiana.edu 20010 np FileListCaps.txt
+Syntax--
+$/web_client.bin <hostname> <server_port> <np/p:Connection type> <Requesting File>
+
+Note: If the requesting file is in the wd of the client then it assumes that its a list of files in Server. I have left 2 such files FileListCaps.txt and FileList.txt. If the file is not present in your PWD then it will try to fetch it from the server(just that file only).
+
+Note: After closing the server if you want to monitor logs a log file with extension .log will be genrated.
+
+
+---Build UDP server---
+cd $ROOT -- as in the root of untared directory
+$cd udp_server
+$make
+$./udp_server 20010  -- same logic of port nos as mentioned above
+
+Note: After closing the server if you want to monitor logs a log file with extension .log will be genrated.
+
+---Build UDP client---
+
+$cd $ROOT -- as in the root of untared directory
+$cd udp_server/client
+$make
+$./udp_client.bin silo.soic.indiana.edu 20010 HelloWorld.html
+$./udp_client.bin localhost 20010 FileListCaps.txt
+
+Note: In case of silo run server and client on same machine cause it is not able to connect to the silo machine via UDP maybe becuase of firewall issues.
+
+Note: If the requesting file is in the wd of the client then it assumes that its a list of files in Server. I have left 2 such files FileListCaps.txt and FileList.txt. If the file is not present in your PWD then it will try to fetch it from the server(just that file only).
+
+Note: After closing the server if you want to monitor logs a log file with extension .log will be genrated.
