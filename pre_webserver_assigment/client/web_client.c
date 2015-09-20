@@ -7,6 +7,7 @@
 #include<unistd.h>
 #include<string.h>
 #include<signal.h>
+#include<sys/time.h>
 
 FILE *debg_ofp;
 FILE     *ifp;
@@ -142,6 +143,9 @@ int get_from_server_persistant(int client_sock_fd, client_info_t client_info,
 {
     char               buf[MAX_BUFFER];
     int                status;
+    struct timeval     recv_time, reply_time;
+    long               elapsed;
+    
     status = connect(client_sock_fd, (struct sockaddr*)&server_addr,
 		     sizeof(server_addr)); 
     if (status < 0) {
@@ -149,10 +153,15 @@ int get_from_server_persistant(int client_sock_fd, client_info_t client_info,
 	fprintf(debg_ofp, "ERROR: Connecting to server\n");
 	exit(1);
     }
+    gettimeofday(&recv_time, 0);
     while (1) {
 	status = build_http_get_request(client_info, buf, debg_ofp);
 	if (status == -1) {
 	    fprintf(debg_ofp, "Error building request silently exiting\n");
+	    gettimeofday(&reply_time, 0);
+	    elapsed = (reply_time.tv_sec-recv_time.tv_sec)*1000000
+		+ reply_time.tv_usec-recv_time.tv_usec;
+	    fprintf(stdout, "\nElapsed: %ld\n", elapsed);
 	    return -1;
 	}
 	status = write(client_sock_fd, buf, strlen(buf));
@@ -180,6 +189,9 @@ int get_from_server_non_persistant(int client_sock_fd, client_info_t client_info
     char               buf[MAX_BUFFER];
     int                status;
     int                first_time = 0;
+    struct timeval     recv_time, reply_time;
+    long               elapsed;
+
     while(1) {
 	if(first_time != 0) {
 	    status = bootstrap_client(&client_sock_fd, client_info,
@@ -190,6 +202,8 @@ int get_from_server_non_persistant(int client_sock_fd, client_info_t client_info
 		fclose(debg_ofp);
 		exit(1);
 	    }
+	} else {
+	    gettimeofday(&recv_time, 0);
 	}
 	status = connect(client_sock_fd, (struct sockaddr*)&server_addr,
 			 sizeof(server_addr)); 
@@ -203,6 +217,10 @@ int get_from_server_non_persistant(int client_sock_fd, client_info_t client_info
 	if (status == -1) {
 	    fprintf(debg_ofp, "Error building request silently exiting\n");
 	    close(client_sock_fd);
+	    gettimeofday(&reply_time, 0);
+	    elapsed = (reply_time.tv_sec-recv_time.tv_sec)*1000000
+		+ reply_time.tv_usec-recv_time.tv_usec;
+	    fprintf(stdout, "\nElapsed: %ld\n", elapsed);
 	    return 0;
 	}
 	status = write(client_sock_fd, buf, strlen(buf));
