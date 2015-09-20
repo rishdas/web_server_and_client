@@ -3,7 +3,7 @@
 
 
 $tar xvf stark_package.tar
-$cd stark_package
+$cd pre_webserver_assigment
 ----Build Server----
 
 $cd lib

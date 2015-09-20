@@ -7,6 +7,8 @@
 #include<unistd.h>
 #include<string.h>
 #include<signal.h>
+#include<sys/time.h>
+
 
 FILE *debg_ofp;
 FILE     *ifp;
@@ -175,6 +177,9 @@ int get_from_server(int client_sock_fd, client_info_t client_info,
     char               buf[MAX_BUFFER];
     int                status;
     int                first_time = 0;
+    long               elapsed;
+    struct timeval     recv_time, reply_time;
+    
     while(1) {
 	if(first_time != 0) {
 	    status = bootstrap_client(&client_sock_fd, client_info,
@@ -200,6 +205,7 @@ int get_from_server(int client_sock_fd, client_info_t client_info,
 	    close(client_sock_fd);
 	    return -1;
 	}
+	gettimeofday(&recv_time, 0);
 	bzero(buf, MAX_BUFFER);
 	status = recvfrom(client_sock_fd, buf, MAX_BUFFER, 0, NULL, NULL);
 	if (status < 0) {
@@ -218,6 +224,10 @@ int get_from_server(int client_sock_fd, client_info_t client_info,
 	if (status == -1) {
 	    return status;
 	}
+	gettimeofday(&reply_time, 0);
+	elapsed = (reply_time.tv_sec-recv_time.tv_sec)*1000000
+	    + reply_time.tv_usec-recv_time.tv_usec;
+	fprintf(stdout, "\nTime Elapsed: %ld\n", elapsed);
 	bzero(buf, MAX_BUFFER);
 	close(client_sock_fd);
 	first_time = 1;

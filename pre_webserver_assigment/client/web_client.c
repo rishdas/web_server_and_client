@@ -161,7 +161,7 @@ int get_from_server_persistant(int client_sock_fd, client_info_t client_info,
 	    gettimeofday(&reply_time, 0);
 	    elapsed = (reply_time.tv_sec-recv_time.tv_sec)*1000000
 		+ reply_time.tv_usec-recv_time.tv_usec;
-	    fprintf(stdout, "\nElapsed: %ld\n", elapsed);
+	    fprintf(stdout, "\nTime Elapsed: %ld\n", elapsed);
 	    return -1;
 	}
 	status = write(client_sock_fd, buf, strlen(buf));
