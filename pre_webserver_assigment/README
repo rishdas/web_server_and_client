@@ -1,9 +1,9 @@
 ####HTTP Web Server, Client and UDP variant of both#####
 -----Stark Server and Lannister client---
 
-
-$tar xvf stark_package.tar
+$tar -zxvf stark_package.tar.gz
 $cd pre_webserver_assigment
+-Find Write up as a file stark_server_writeup.docx(Becuase it has screenshots)
 ----Build Server----
 
 $cd lib
