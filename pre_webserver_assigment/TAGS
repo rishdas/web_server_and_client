@@ -150,3 +150,89 @@ static volatile int keep_running 7,103
 int cleanup(8,141
 void int_handler(19,316
 int main(25,401
+
+client/web_client.c,480
+FILE *debg_ofp;debg_ofp12,202
+FILE     *ifp;ifp13,218
+int  client_sock_fd;14,233
+#define MAX_BUFFER 15,254
+#define MAXLINE 16,281
+typedef struct client_info_17,302
+} client_info_t;24,498
+int cleanup(26,520
+int parse_cmd_line_args(37,695
+int bootstrap_client(74,1855
+int is_persistent(94,2502
+int build_http_get_request(106,2690
+int get_content_length(147,3970
+int get_from_server_persistant(161,4263
+int get_from_server_non_persistant(219,6140
+int main(284,8181
+
+lib/web_server.c,517
+#define MAXLINE 12,187
+#define WAIT 13,208
+#define MAX_BUFFER 14,227
+typedef struct http_packet_info_15,254
+} http_packet_info_t;21,388
+int parse_http_request(23,411
+int is_persistent(60,1390
+int bootstrap_server(72,1576
+char *get_file_from_uri(get_file_from_uri98,2321
+int build_http_get_response(105,2488
+int build_http_get_response_persitant(136,3583
+int build_http_get_err_response(169,4825
+int respond_to_http(184,5393
+int wait_for_and_hdl_persistant_conn(210,6016
+int handle_connection(272,7829
+
+udp_server/client/udp_client.c,424
+FILE *debg_ofp;debg_ofp13,203
+FILE     *ifp;ifp14,219
+int  client_sock_fd;15,234
+#define MAX_BUFFER 16,255
+typedef struct client_info_17,279
+} client_info_t;23,438
+int cleanup(25,460
+int parse_cmd_line_args(36,635
+int bootstrap_client(70,1668
+int build_http_get_request(90,2314
+int get_seg_no_max_seg_no(123,3427
+int check_and_recieve_further_segments(144,4034
+int get_from_server(174,4850
+int main(237,6804
+
+udp_server/udp_server.c,657
+#define MAXLINE 13,206
+#define WAIT 14,225
+#define MAX_BUFFER 15,244
+#define MAX_PAYLOAD 16,268
+FILE *debg_ofp;debg_ofp18,294
+int udp_serv_sock_fd;19,310
+static volatile int keep_running 20,332
+typedef struct http_packet_info_21,370
+} http_packet_info_t;26,481
+char *get_file_from_uri(get_file_from_uri31,546
+int cleanup(39,714
+void int_handler(50,889
+void ignore_sigpipe(55,973
+int bootstrap_server(68,1250
+int parse_http_request(92,1953
+int build_http_get_err_response(107,2314
+int build_http_get_response(123,2883
+int segment_and_send_response(157,4062
+int respond_to_http(218,6029
+int handle_connection(247,6905
+int main(264,7362
+
+web_server.h,27
+#define CONN_QUEUE 10,165
+
+web_server_main.c,186
+FILE *debg_ofp;debg_ofp5,65
+int web_serv_sock_fd;6,81
+static volatile int keep_running 7,103
+int cleanup(8,141
+void int_handler(19,316
+void ignore_sigpipe(24,400
+int main(37,677
