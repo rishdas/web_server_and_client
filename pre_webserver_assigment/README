@@ -122,4 +122,7 @@ Using host libthread_db library "/lib64/libthread_db.so.1".
 [Thread 0x7ffff75f9700 (LWP 121125) exited]
 [Thread 0x7ffff6df8700 (LWP 121126) exited]
 
-
+Elapsed: 18966
+[sirdas@silo client]$ ./web_client.bin localhost 20012 np test.txt 
+Elapsed: 31532
+[sirdas@silo client]$ ./web_client.bin localhost 20012 np test.txt 
