@@ -3,7 +3,7 @@ DEPS=web_sever.h
 OBJ=web_server_main.o
 LIBPATH=./lib
 CFLAGS=-I. -g
-LIB=-lwebserver
+LIB=-lwebserver -pthread
 %.o: %.c $(DEPS)
 	$(CC) -c -o $@ $< -g
 build: web_server_main.o
