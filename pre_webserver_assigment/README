@@ -14,7 +14,17 @@ $export LD_LIBRARY_PATH=$PWD/lib:$LD_LIBRARY_PATH
 Run the server--
 $./web_server.bin 20010 -- in case silo please choose a port higher than 20000
 
+Test Cases:
+Open Browser
+http://silo.soic.indiana.edu:20010/PersistantTest.html
+http://silo.soic.indiana.edu:20010/HelloWorld.html
+http://silo.soic.indiana.edu:20010/HelloWorldReply.html
+http://silo.soic.indiana.edu:20010/HelloWorldReply.htm -- 404 not found
+
+
 Note: After closing the server if you want to monitor logs a log file with extension .log will be genrated.
+
+
 
 ----Build Client----
 $cd $ROOT -- as in the root of untared directory
@@ -28,6 +38,23 @@ Note: If the requesting file is in the wd of the client then it assumes that its
 
 Note: After closing the server if you want to monitor logs a log file with extension .log will be genrated.
 
+Test Cases:
+./web_client.bin localhost 20010 p HelloWorld.html
+./web_client.bin localhost 20010 p test.txt -- 1 MB File
+Time Elapsed: 15308
+./web_client.bin localhost 20010 np test.txt -- 1 MB File
+Elapsed: 17880
+./web_client.bin localhost 20011 p FileListCaps.txt -- list of small 10 files
+Time Elapsed: 8085
+./web_client.bin localhost 20011 np FileListCaps.txt -- list of small 10 files
+Elapsed: 8221
+./web_client.bin localhost 20010 np FileList.txt -- List of 10 1MB files
+Elapsed: 7352442
+./web_client.bin localhost 20010 p FileList.txt  -- List of 10 MB files
+Time Elapsed: 6697392
+
+More detailed analysis of Time taken for 1, 2.. 10 MB files in the write up
+
 
 ---Build UDP server---
 cd $ROOT -- as in the root of untared directory
@@ -36,6 +63,9 @@ $make
 $./udp_server 20010  -- same logic of port nos as mentioned above
 
 Note: After closing the server if you want to monitor logs a log file with extension .log will be genrated.
+Test Cases :
+
+As as part of UDP client see Below
 
 ---Build UDP client---
 
@@ -50,3 +80,6 @@ Note: In case of silo run server and client on same machine cause it is not able
 Note: If the requesting file is in the wd of the client then it assumes that its a list of files in Server. I have left 2 such files FileListCaps.txt and FileList.txt. If the file is not present in your PWD then it will try to fetch it from the server(just that file only).
 
 Note: After closing the server if you want to monitor logs a log file with extension .log will be genrated.
+
+Test cases:
+./udp_client.bin localhost 20010 HelloWorld.html

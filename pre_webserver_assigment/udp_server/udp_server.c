@@ -308,7 +308,7 @@ int main(int argc, char *argv[])
 	    cleanup(udp_serv_sock_fd, debg_ofp);
 	    return 1;
 	}
-	fprintf(stdout, "Recieved Message :\n %s", buf);
+	fprintf(debg_ofp, "Recieved Message :\n %s", buf);
 	
 	status = handle_connection(udp_serv_sock_fd, buf,
 				   cli_addr, cli_len, debg_ofp);
