@@ -88,3 +88,38 @@ Time Elapsed: 1315
 $./udp_client.bin localhost 20010 test.txt
 Packet Loss
 Segment no: 1008  Max Segment No: 1010
+-------Multi Threaded Server----------
+
+$cd $ROOT -- as in the root of untared directory
+$cd multi_threaded_server/
+$cd lib
+$make
+$cd ..
+Note: if u have already doen this lib part earlier do it in another bash session
+$export LD_LIBRARY_PATH=$PWD/lib:$LD_LIBRARY_PATH
+$make
+$./web_server.bin 20010
+To test 
+run to simultanoes connections from browswer and gdb the running file like this
+gdb -args ./web_server 20010
+$ gdb -args ./web_server.bin 20010
+GNU gdb (GDB) Red Hat Enterprise Linux 7.6.1-64.el7
+Copyright (C) 2013 Free Software Foundation, Inc.
+License GPLv3+: GNU GPL version 3 or later <http://gnu.org/licenses/gpl.html>
+This is free software: you are free to change and redistribute it.
+There is NO WARRANTY, to the extent permitted by law.  Type "show copying"
+and "show warranty" for details.
+This GDB was configured as "x86_64-redhat-linux-gnu".
+For bug reporting instructions, please see:
+<http://www.gnu.org/software/gdb/bugs/>...
+Reading symbols from /nfs/nfs4/home/sirdas/computer_networks/pre_webserver_assigment/multi_threaded_server/web_server.bin...done.
+(gdb) run
+Starting program: /nfs/nfs4/home/sirdas/computer_networks/pre_webserver_assigment/multi_threaded_server/./web_server.bin 20010
+[Thread debugging using libthread_db enabled]
+Using host libthread_db library "/lib64/libthread_db.so.1".
+[New Thread 0x7ffff75f9700 (LWP 121125)]
+[New Thread 0x7ffff6df8700 (LWP 121126)]
+[Thread 0x7ffff75f9700 (LWP 121125) exited]
+[Thread 0x7ffff6df8700 (LWP 121126) exited]
+
+
