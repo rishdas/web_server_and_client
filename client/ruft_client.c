@@ -115,8 +115,8 @@ int main(int argc, char *argv[])
     fprintf(stdout, "Recieved Message :\nFlags : %d \n"\
 	    "Advertised Window : %d \nAck No: %d \nSeq No: %d\n"\
 	    "Payload Length: %d \nPayload: %s\n", ntohs(pkt.flags),
-	    ntohs(pkt.awnd), ntohs(pkt.ack_no), ntohs(pkt.seq_no),
-	    ntohs(pkt.payload_length), pkt.payload);
+	    ntohs(pkt.awnd), ntohl(pkt.ack_no), ntohl(pkt.seq_no),
+	    ntohl(pkt.payload_length), pkt.payload);
 
     status = sendto(client_sock_fd, &(pkt), sizeof(pkt), 0,
 		    (struct sockaddr *)&server_addr, sizeof(server_addr));
