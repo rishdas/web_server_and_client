@@ -91,6 +91,7 @@ int main(int argc, char *argv[])
     signal(SIGINT, int_handler);
     ignore_sigpipe();
     debg_ofp = fopen(file_name, "w");
+    bzero(&pkt, sizeof(pkt));
 
     if (argc < 2) {
 	fprintf(debg_ofp, "No port no entered hence exiting\n");

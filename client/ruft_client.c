@@ -90,6 +90,7 @@ int main(int argc, char *argv[])
     struct sockaddr_in server_addr;
     ruft_pkt_info_t    pkt;
     
+    bzero(&pkt, sizeof(pkt));
     signal(SIGPIPE, SIG_IGN);
     debg_ofp = fopen(file_name, "w");
     status = parse_cmd_line_args(argc, argv, &client_info, debg_ofp);
@@ -111,7 +112,7 @@ int main(int argc, char *argv[])
     pkt.ack_no = htonl(3);
     pkt.seq_no = htonl(4);
     pkt.payload_length = htonl(10);
-    strncpy(pkt.payload, file_name, strlen(file_name));
+    strncpy(pkt.payload, file_name, strlen(file_name)+1);
     fprintf(stdout, "Recieved Message :\nFlags : %d \n"\
 	    "Advertised Window : %d \nAck No: %d \nSeq No: %d\n"\
 	    "Payload Length: %d \nPayload: %s\n", ntohs(pkt.flags),
