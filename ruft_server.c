@@ -10,12 +10,6 @@
 #include<signal.h>
 #include "ruft.h"
 
-
-#define MAXLINE 20
-#define WAIT    10
-#define MAX_BUFFER 1200
-#define MAX_PAYLOAD 1000
-
 FILE *debg_ofp;
 int udp_serv_sock_fd;
 static volatile int keep_running = 1;
@@ -53,7 +47,7 @@ void ignore_sigpipe(void)
     }
 }
 
-int bootstrap_server(int *serv_sock_fd, int port_no, FILE *debg_ofp)
+int ruft_server_bootstrap(int *serv_sock_fd, int port_no, FILE *debg_ofp)
 {
     int                status;
     struct sockaddr_in serv_addr;
@@ -76,6 +70,86 @@ int bootstrap_server(int *serv_sock_fd, int port_no, FILE *debg_ofp)
     }
     return 0;
 }
+int ruft_server_pkt_info_to_ctx(ruft_pkt_info_t pkt, ruft_pkt_ctx_t *ctx,
+				FILE *debg_ofp)
+{
+    short flags = 0;
+    flags = ntohs(pkt.flags);
+    /*Extract Flags*/
+    if ((flags&0x10) == 0x10) {
+	ctx->is_ack = TRUE;
+    } else {
+	ctx->is_ack = FALSE;
+    }
+    
+    if ((flags&0x20) == 0x20) {
+	ctx->is_data_pkt = TRUE;
+    } else {
+	ctx->is_data_pkt = FALSE;
+    }
+    if ((flags&0x40) == 0x40) {
+	ctx->is_last_pkt = TRUE;
+    } else {
+	ctx->is_last_pkt = FALSE;
+    }
+    ctx->ack_no = ntohl(pkt.ack_no);
+    ctx->seq_no = ntohl(pkt.seq_no);
+    ctx->awnd = ntohs(pkt.awnd);
+    ctx->payload_length = ntohl(pkt.payload_length);
+    ctx->payload = (char *)malloc(ctx->payload_length);
+    strncpy(ctx->payload, pkt.payload, ctx->payload_length);
+    return 0;
+}
+
+int ruft_server_pkt_ctx_to_info(ruft_pkt_info_t *pkt, ruft_pkt_ctx_t ctx,
+				FILE *debg_ofp)
+{
+    /*Fill the Flags*/
+    short flags = 0;
+    if (ctx.is_ack == TRUE) {
+	flags = flags|0x10;
+    } else {
+	flags = flags|0x00;
+    }
+
+    if (ctx.is_data_pkt == TRUE) {
+	flags = flags|0x20;
+    } else {
+	flags = flags|0x00;
+    }
+
+    if (ctx.is_last_pkt == TRUE) {
+	flags = flags|0x40;
+    } else {
+	flags = flags|0x00;
+    }
+    pkt->flags = htons(flags);
+    pkt->ack_no = htonl(ctx.ack_no);
+    pkt->seq_no = htonl(ctx.seq_no);
+    pkt->awnd = htons(ctx.awnd);
+    pkt->payload_length = htonl(ctx.payload_length);
+    strncpy(pkt->payload, ctx.payload, ctx.payload_length);
+    return 0;
+}
+int ruft_server_print_pkt_ctx(ruft_pkt_ctx_t ctx, FILE *debg_ofp)
+{
+    fprintf(stdout, "Recieved Message :\nAck : %s \n"\
+	    "Data Pkt: %s\nLast Pkt: %s\n"\
+	    "Advertised Window : %d \nAck No: %d \nSeq No: %d\n"\
+	    "Payload Length: %d \nPayload: %s\n",
+	    (ctx.is_ack == TRUE)?"TRUE":"FALSE",
+	    (ctx.is_data_pkt == TRUE)?"TRUE":"FALSE",
+	    (ctx.is_last_pkt == TRUE)?"TRUE":"FALSE",
+	    ctx.awnd, ctx.ack_no, ctx.seq_no,
+	    ctx.payload_length, ctx.payload);
+    return 0;
+}
+
+int ruft_server_free_ctx(ruft_pkt_ctx_t ctx)
+{
+    free(ctx.payload);
+    return 0;
+}
 
 int main(int argc, char *argv[])
 {
@@ -85,13 +159,14 @@ int main(int argc, char *argv[])
     int                   status;
     struct sockaddr_in    cli_addr;
     int                   cli_len;
-    char                  buf[MAX_BUFFER];
     ruft_pkt_info_t       pkt;
+    ruft_pkt_ctx_t        ctx;
     
     signal(SIGINT, int_handler);
     ignore_sigpipe();
     debg_ofp = fopen(file_name, "w");
     bzero(&pkt, sizeof(pkt));
+    bzero(&ctx, sizeof(ctx));
 
     if (argc < 2) {
 	fprintf(debg_ofp, "No port no entered hence exiting\n");
@@ -101,7 +176,7 @@ int main(int argc, char *argv[])
 	exit(1);
     }
     port_no = atoi(argv[1]);
-    status = bootstrap_server(&udp_serv_sock_fd, port_no, debg_ofp);
+    status = ruft_server_bootstrap(&udp_serv_sock_fd, port_no, debg_ofp);
     if (status != 0){
 	fprintf(debg_ofp, "ERROR in binding server port\n");
 	fprintf(stderr, "ERROR bootstrapping server see log files for details\n");
@@ -113,7 +188,8 @@ int main(int argc, char *argv[])
     {
 	cli_len = sizeof(cli_addr);
 	num_bytes = recvfrom(udp_serv_sock_fd, &pkt, sizeof(pkt), 0,
-			     (struct sockaddr *) &cli_addr, (socklen_t *) &cli_len);
+			     (struct sockaddr *) &cli_addr,
+			     (socklen_t *) &cli_len);
 	if (num_bytes == 0) {
 	    fprintf(debg_ofp,
 		    "UDP client connection closed at client side\n");
@@ -126,12 +202,9 @@ int main(int argc, char *argv[])
 	    cleanup(udp_serv_sock_fd, debg_ofp);
 	    return 1;
 	}
-	fprintf(stdout, "Recieved Message :\nFlags : %d \n"\
-		"Advertised Window : %d \nAck No: %d \nSeq No: %d\n"\
-		"Payload Length: %d \nPayload: %s\n", ntohs(pkt.flags),
-		ntohs(pkt.awnd), ntohl(pkt.ack_no), ntohl(pkt.seq_no),
-		ntohl(pkt.payload_length), pkt.payload);
-		
+	ruft_server_pkt_info_to_ctx(pkt, &ctx, debg_ofp);
+	ruft_server_print_pkt_ctx(ctx, debg_ofp);
+	
     }
     cleanup(udp_serv_sock_fd, debg_ofp);
 }
