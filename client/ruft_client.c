@@ -13,6 +13,7 @@
 FILE *debg_ofp;
 FILE     *ifp;
 int  client_sock_fd;
+ruft_client_states_t client_state;
 
 typedef struct client_info_
 {
@@ -159,7 +160,21 @@ int ruft_client_free_ctx(ruft_pkt_ctx_t ctx)
     free(ctx.payload);
     return 0;
 }
-
+int ruft_client_build_get_rqst(ruft_pkt_ctx_t *ctx, client_info_t client_info,
+			       FILE *debg_ofp)
+{
+    ctx->is_ack = FALSE;
+    ctx->is_data_pkt = FALSE;
+    ctx->is_last_pkt = FALSE;
+    ctx->awnd = 1;
+    ctx->ack_no = 0;
+    ctx->seq_no = 1;
+    ctx->payload_length = strlen(client_info.file_name)+strlen("GET")+1;
+    ctx->payload = (char *)malloc(ctx->payload_length);
+    sprintf(ctx->payload, "GET %s", client_info.file_name);
+    ruft_client_print_pkt_ctx(*ctx, debg_ofp);
+    return 0;
+}
 int main(int argc, char *argv[])
 {
 
@@ -188,15 +203,8 @@ int main(int argc, char *argv[])
 	fclose(debg_ofp);
 	exit(1);
     }
-    ctx.is_ack = FALSE;
-    ctx.is_data_pkt = FALSE;
-    ctx.is_last_pkt = FALSE;
-    ctx.awnd = 2;
-    ctx.ack_no = 3;
-    ctx.seq_no = 4;
-    ctx.payload_length = strlen(file_name) +1;
-    ctx.payload = file_name;
-    ruft_client_print_pkt_ctx(ctx, debg_ofp);
+    client_state = CL_SEND_REQUEST;
+    ruft_client_build_get_rqst(&ctx, client_info, debg_ofp);
     ruft_client_pkt_ctx_to_info(&pkt, ctx, debg_ofp);
 
     status = sendto(client_sock_fd, &(pkt), sizeof(pkt), 0,
@@ -207,7 +215,18 @@ int main(int argc, char *argv[])
 	close(client_sock_fd);
 	return -1;
     }
-
+    bzero(&pkt, sizeof(pkt));
+    bzero(&ctx, sizeof(ctx));
+    status = recvfrom(client_sock_fd, &pkt, sizeof(pkt), 0, NULL, NULL);
+    if (status < 0) {
+	fprintf(stderr, "Error reading from the socket\n");
+	fprintf(debg_ofp, "Error reading into the socket\n");
+	close(client_sock_fd);
+	return -1;
+    }
+    ruft_client_pkt_info_to_ctx(pkt, &ctx, debg_ofp);
+    ruft_client_print_pkt_ctx(ctx, debg_ofp);
+    
     fclose(debg_ofp);
     return 0;
 }

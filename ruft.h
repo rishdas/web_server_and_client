@@ -1,5 +1,6 @@
 
 #define MAX_PAYLOAD 1280
+#define MAXLINE 50
 #define TRUE 1
 #define FALSE 0
 
