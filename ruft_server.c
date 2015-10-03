@@ -20,7 +20,7 @@ ruft_server_states_t server_state;
 typedef struct ruft_server_rqst_info_
 {
     struct sockaddr_in cli_addr;
-    int cli_len;
+    size_t cli_len;
     char file_name[MAXLINE];
 } ruft_server_rqst_info_t;
 int cleanup(int serv_sock_fd, FILE *debg_ofp)
@@ -163,9 +163,9 @@ int ruft_server_send_pkt(ruft_pkt_ctx_t ctx, ruft_server_rqst_info_t req_info,
 
     bzero(&pkt, sizeof(pkt));
     ruft_server_pkt_ctx_to_info(&pkt, ctx, debg_ofp);
-    num_bytes = recvfrom(udp_serv_sock_fd, &pkt, sizeof(pkt), 0,
-			 (struct sockaddr *) &req_info.cli_addr,
-			 (socklen_t *) &req_info.cli_len);
+    num_bytes = sendto(udp_serv_sock_fd, &pkt, sizeof(pkt), 0,
+		       (struct sockaddr *) &(req_info.cli_addr),
+		       (req_info.cli_len));
     if (num_bytes == 0) {
 	fprintf(debg_ofp,
 		"UDP client connection closed at client side\n");
@@ -185,7 +185,6 @@ int ruft_server_process_req(ruft_pkt_ctx_t ctx,
     char method[10];
     FILE *uri_file_p;
     server_state = SV_PROC_REQ;
-    fprintf(stdout, "In proccess msg");
     sscanf("%s %s", method, rqst_info->file_name);
     fprintf(debg_ofp, "Method : %s File_name: %s", method, rqst_info->file_name);
     if (strncmp(method, "GET", strlen("GET")) != 0) {
@@ -245,7 +244,6 @@ int ruft_server_handle_pkt(ruft_pkt_info_t pkt,struct sockaddr_in cli_addr,
     ruft_server_pkt_info_to_ctx(pkt, &ctx, debg_ofp);
     fprintf(stdout, "Request Recieved\n");
     ruft_server_print_pkt_ctx(ctx, debg_ofp);
-    fprintf(stdout, "Request Printed\n");
     
     status = ruft_server_process_req(ctx, &rqst_info, debg_ofp);
     switch(status)
@@ -271,7 +269,7 @@ int main(int argc, char *argv[])
     int                   port_no;
     int                   status;
     struct sockaddr_in    cli_addr;
-    int                   cli_len;
+    size_t                cli_len;
     ruft_pkt_info_t       pkt;
 
     
