@@ -138,7 +138,11 @@ int ruft_client_pkt_ctx_to_info(ruft_pkt_info_t *pkt, ruft_pkt_ctx_t ctx,
     pkt->seq_no = htonl(ctx.seq_no);
     pkt->awnd = htons(ctx.awnd);
     pkt->payload_length = htonl(ctx.payload_length);
-    strncpy(pkt->payload, ctx.payload, ctx.payload_length);
+    if (ctx.payload_length != 0) {
+	strncpy(pkt->payload, ctx.payload, ctx.payload_length);
+    } else {
+	pkt->payload[0] = '\0';
+    }
     return 0;
 }
 
@@ -170,9 +174,10 @@ int ruft_client_build_get_rqst(ruft_pkt_ctx_t *ctx, client_info_t client_info,
     ctx->awnd = MAX_PAYLOAD; //TODO
     ctx->ack_no = 0;
     ctx->seq_no = 1;
-    ctx->payload_length = strlen(client_info.file_name)+strlen("GET")+1;
+    ctx->payload_length = strlen(client_info.file_name)+strlen("GET")+2;
     ctx->payload = (char *)malloc(ctx->payload_length);
     sprintf(ctx->payload, "GET %s", client_info.file_name);
+    ctx->payload[ctx->payload_length-1] = '\0';
     ruft_client_print_pkt_ctx(*ctx, debg_ofp);
     return 0;
 }
@@ -229,7 +234,7 @@ int ruft_client_send_ack(ruft_pkt_ctx_t req_ctx, client_info_t client_info,
     ack_ctx.is_data_pkt = FALSE;
     ack_ctx.is_last_pkt = TRUE;
     ack_ctx.ack_no = req_ctx.seq_no+1;
-    ack_ctx.seq_no = req_ctx.ack_no+1;
+    ack_ctx.seq_no = req_ctx.ack_no;
     ack_ctx.awnd = MAX_PAYLOAD;
     ack_ctx.payload_length = 0;
     ack_ctx.payload = NULL;

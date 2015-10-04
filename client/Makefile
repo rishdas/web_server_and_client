@@ -3,8 +3,8 @@ OBJ=ruft_client.o
 DEPS=ruft.h
 CFLAGS=-I..
 %.o: %.c $(DEPS)
-	$(CC) -c -o $@ $<
+	$(CC) -c -o $@ $< -g
 build: ruft_client.o
-	$(CC) $(CFLAGS) -o ruft_client.bin $(OBJ)
+	$(CC) $(CFLAGS) -o ruft_client.bin $(OBJ) -g
 clean:
 	rm -f *.o *~ *.bin *.log

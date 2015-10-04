@@ -1,36 +1,70 @@
 
-client/ruft_client.c,597
+client/ruft_client.c,787
 FILE *debg_ofp;debg_ofp13,220
 FILE     *ifp;ifp14,236
 int  client_sock_fd;15,251
 ruft_client_states_t client_state;16,272
 typedef struct client_info_18,308
+    int                port;20,338
+    char               *file_name;file_name21,367
+    struct hostent     *server_addr;server_addr22,402
+    struct sockaddr_in serv_sock_addr;23,439
 } client_info_t;24,478
 int cleanup(26,500
 int parse_cmd_line_args(37,675
 int ruft_client_bootstrap(63,1476
 int ruft_client_pkt_info_to_ctx(83,2125
 int ruft_client_pkt_ctx_to_info(114,2895
-int ruft_client_print_pkt_ctx(145,3588
-int ruft_client_free_ctx(159,4072
-int ruft_client_build_get_rqst(164,4158
-int ruft_client_send_pkt(179,4680
-int ruft_client_recv_pkt(199,5268
-int ruft_client_send_ack(222,5966
-int main(239,6470
+int ruft_client_print_pkt_ctx(149,3664
+int ruft_client_free_ctx(163,4148
+int ruft_client_build_get_rqst(168,4234
+int ruft_client_send_pkt(184,4804
+int ruft_client_recv_pkt(204,5392
+int ruft_client_send_ack(227,6090
+int main(244,6592
 
-ruft.h,874
+ruft.h,1853
 #define MAX_PAYLOAD 2,1
 #define MAXLINE 3,26
 #define TRUE 4,45
 #define FALSE 5,60
 typedef struct ruft_pkt_info_ 7,77
+    short flags;9,111
+    short awnd;10,128
+    int   ack_no;11,144
+    int   seq_no;12,162
+    int   payload_length;13,180
+    char  payload[payload14,206
 } ruft_pkt_info_t;15,238
 typedef struct ruft_pkt_ctx_17,258
+    int   is_ack;19,289
+    int   is_data_pkt;20,307
+    int   is_last_pkt;21,330
+    int   ack_no;22,353
+    int   seq_no;23,371
+    short awnd;24,389
+    int   payload_length;25,405
+    char  *payload;payload26,431
 } ruft_pkt_ctx_t;27,451
 typedef struct ruft_server_traff_info_29,470
+    int            seg_no;31,511
+    int            no_ack_recvd;32,538
+    int            is_acked;33,571
+    int            first_byte;34,600
+    int            last_byte;35,631
+    struct timeval sent_time;36,661
+    struct timeval ack_recv_time;37,691
+    unsigned long  rtt;38,725
 } ruft_server_traff_info_t;39,749
 typedef struct ruft_client_traff_info_41,778
+    int            seg_no;43,819
+    int            no_ack_sent;44,846
+    int            acked;45,878
+    int            first_byte;46,904
+    int            last_byte;47,935
+    struct timeval ack_sent_time;48,965
+    struct timeval data_recv_time;49,999
+    long           rtt;50,1034
 } ruft_client_traff_info_t;51,1058
 typedef enum ruft_client_states_ 53,1087
     CL_SEND_REQUEST,54,1122
@@ -49,32 +83,35 @@ typedef enum ruft_server_states_ 62,1260
     SV_FAST_RECOV68,1381
 }ruft_server_states_t;ruft_server_states_t69,1399
 
-ruft_server.c,1018
+ruft_server.c,1123
 FILE *debg_ofp;debg_ofp13,223
 int udp_serv_sock_fd;14,239
 ruft_server_states_t server_state;15,261
 ruft_server_traff_info_t *traff_info;traff_info16,296
 unsigned int max_wd;17,334
 typedef struct ruft_server_rqst_info_22,398
+    struct sockaddr_in cli_addr;24,438
+    size_t cli_len;25,471
+    char file_name[file_name26,491
 } ruft_server_rqst_info_t;27,520
 int cleanup(28,547
 void int_handler(39,722
 void ignore_sigpipe(44,806
 int ruft_server_bootstrap(57,1083
 int ruft_server_pkt_info_to_ctx(80,1790
-int ruft_server_pkt_ctx_to_info(111,2560
-int ruft_server_print_pkt_ctx(141,3252
-int ruft_server_free_ctx(155,3736
-int ruft_server_send_pkt(160,3822
-int ruft_server_recv_pkt(184,4451
-int ruft_server_process_req(210,5137
-int ruft_server_add_traff_info(230,5748
-int ruft_server_set_sent_time(241,6156
-int ruft_server_set_ack_recv_time(246,6277
-int ruft_server_set_ack_recv(255,6610
-int ruft_server_send_file(264,6846
-int ruft_server_send_err_msg(271,6976
-int ruft_server_create_traff_window(295,7880
-int ruft_server_handle_err(309,8147
-int ruft_server_handle_pkt(334,8918
-int main(369,9760
+int ruft_server_pkt_ctx_to_info(116,2685
+int ruft_server_print_pkt_ctx(150,3448
+int ruft_server_free_ctx(164,3932
+int ruft_server_send_pkt(169,4018
+int ruft_server_recv_pkt(193,4647
+int ruft_server_process_req(219,5333
+int ruft_server_add_traff_info(243,6102
+int ruft_server_set_sent_time(253,6452
+int ruft_server_set_ack_recv_time(258,6573
+int ruft_server_set_ack_recv(267,6906
+int ruft_server_send_file(276,7142
+int ruft_server_send_err_msg(283,7272
+int ruft_server_create_traff_window(309,8290
+int ruft_server_handle_err(325,8651
+int ruft_server_handle_pkt(350,9422
+int main(389,10375

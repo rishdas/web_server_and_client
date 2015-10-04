@@ -103,8 +103,13 @@ int ruft_server_pkt_info_to_ctx(ruft_pkt_info_t pkt, ruft_pkt_ctx_t *ctx,
     ctx->seq_no = ntohl(pkt.seq_no);
     ctx->awnd = ntohs(pkt.awnd);
     ctx->payload_length = ntohl(pkt.payload_length);
-    ctx->payload = (char *)malloc(ctx->payload_length);
-    strncpy(ctx->payload, pkt.payload, ctx->payload_length);
+    ctx->payload = (char *)malloc(ctx->payload_length+1);
+    bzero(ctx->payload, ctx->payload_length);
+    if (ctx->payload_length != 0) {
+	strncpy(ctx->payload, pkt.payload, ctx->payload_length);
+    } else {
+	ctx->payload[0] = '\0';
+    }
     return 0;
 }
 
@@ -135,7 +140,11 @@ int ruft_server_pkt_ctx_to_info(ruft_pkt_info_t *pkt, ruft_pkt_ctx_t ctx,
     pkt->seq_no = htonl(ctx.seq_no);
     pkt->awnd = htons(ctx.awnd);
     pkt->payload_length = htonl(ctx.payload_length);
-    strncpy(pkt->payload, ctx.payload, ctx.payload_length);
+    if(ctx.payload != NULL) {
+	strncpy(pkt->payload, ctx.payload, ctx.payload_length);
+    } else {
+	pkt->payload[0] = '\0';
+    }
     return 0;
 }
 int ruft_server_print_pkt_ctx(ruft_pkt_ctx_t ctx, FILE *debg_ofp)
@@ -213,10 +222,14 @@ int ruft_server_process_req(ruft_pkt_ctx_t ctx,
     char method[10];
     FILE *uri_file_p;
     server_state = SV_PROC_REQ;
-    sscanf("%s %s", method, rqst_info->file_name);
-    fprintf(debg_ofp, "Method : %s File_name: %s", method, rqst_info->file_name);
+    sscanf(ctx.payload, "%s %s", method, rqst_info->file_name);
+    fprintf(debg_ofp, "Method : %s File_name: %s\n",
+	    method, rqst_info->file_name);
+    method[strlen("GET")+1] = '\0';
+    rqst_info->file_name[strlen(rqst_info->file_name)+1] = '\0';
     if (strncmp(method, "GET", strlen("GET")) != 0) {
 	/*Error Request Format*/
+	fprintf(debg_ofp, "Bad Request\n");
 	return 2;
     }
     uri_file_p = fopen(rqst_info->file_name, "r");
@@ -230,7 +243,6 @@ int ruft_server_process_req(ruft_pkt_ctx_t ctx,
 int ruft_server_add_traff_info(ruft_pkt_ctx_t ctx, unsigned int index,
 			       FILE *debg_ofp)
 {
-    bzero(&traff_info[index], sizeof(traff_info[index]));
     traff_info[index].seg_no = index;
     traff_info[index].no_ack_recvd = 0;
     traff_info[index].is_acked = FALSE;
@@ -281,10 +293,12 @@ int ruft_server_send_err_msg(ruft_pkt_ctx_t req_ctx,
     reply_ctx.ack_no = req_ctx.seq_no+req_ctx.payload_length;
     reply_ctx.seq_no = req_ctx.ack_no;
     reply_ctx.awnd = MAX_PAYLOAD; //TODO
-    reply_ctx.payload_length = strlen("Arya Error: File Not Found\0");
+    reply_ctx.payload_length = strlen("Arya Error: File Not Found")+1;
     reply_ctx.payload = (char *)malloc(reply_ctx.payload_length);
-    strncpy(reply_ctx.payload, "Arya Error: File Not Found\0",
-	    reply_ctx.payload_length);
+    bzero(reply_ctx.payload, reply_ctx.payload_length);
+    strncpy(reply_ctx.payload, "Arya Error: File Not Found",
+	    reply_ctx.payload_length-1);
+    reply_ctx.payload[reply_ctx.payload_length-1] = '\0';
     ruft_server_add_traff_info(reply_ctx, 0, debg_ofp);
     ruft_server_set_sent_time(0);
     /*Set the time for Zeroth segment as this is error scenario*/
@@ -303,7 +317,9 @@ int ruft_server_create_traff_window(ruft_server_rqst_info_t rqst_info,
     default:
 	break;
     }
-    traff_info = malloc(max_wd*sizeof(traff_info));
+    traff_info = (ruft_server_traff_info_t *)
+	malloc(max_wd*sizeof(ruft_server_traff_info_t));
+    bzero(traff_info, max_wd*sizeof(traff_info));
     return 0;
 }
 int ruft_server_handle_err(ruft_pkt_ctx_t req_ctx,
@@ -359,10 +375,14 @@ int ruft_server_handle_pkt(ruft_pkt_info_t pkt,struct sockaddr_in cli_addr,
 	ruft_server_handle_err(ctx, rqst_info, debg_ofp);
 	break;
     default:
+	ruft_server_handle_err(ctx, rqst_info, debg_ofp);
 	break;
     }
     server_state = SV_WAIT;
-    free(traff_info);
+    if (traff_info != NULL) {
+    	free(traff_info);
+    }
+    traff_info = NULL;
     return 0;
 }
 
