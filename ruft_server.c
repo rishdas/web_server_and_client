@@ -138,7 +138,7 @@ int ruft_server_pkt_ctx_to_info(ruft_pkt_info_t *pkt, ruft_pkt_ctx_t ctx,
 }
 int ruft_server_print_pkt_ctx(ruft_pkt_ctx_t ctx, FILE *debg_ofp)
 {
-    fprintf(stdout, "Recieved Message :\nAck : %s \n"\
+    fprintf(stdout, "Message :\nAck : %s \n"\
 	    "Data Pkt: %s\nLast Pkt: %s\n"\
 	    "Advertised Window : %d \nAck No: %d \nSeq No: %d\n"\
 	    "Payload Length: %d \nPayload: %s\n",
@@ -179,6 +179,32 @@ int ruft_server_send_pkt(ruft_pkt_ctx_t ctx, ruft_server_rqst_info_t req_info,
     }
     return 0;
 }
+int ruft_server_recv_pkt(ruft_pkt_ctx_t *ctx, ruft_server_rqst_info_t *req_info,
+			 FILE *debg_ofp)
+{
+    ruft_pkt_info_t pkt;
+    int             num_bytes;
+
+    bzero(&pkt, sizeof(pkt));
+
+    num_bytes = recvfrom(udp_serv_sock_fd, &pkt, sizeof(pkt), 0,
+			 (struct sockaddr *) &(req_info->cli_addr),
+			 (socklen_t *)&(req_info->cli_len));
+    if (num_bytes == 0) {
+	fprintf(debg_ofp,
+		"UDP client connection closed at client side\n");
+	return 1;
+    }
+	
+    if (num_bytes < 0) {
+	fprintf(debg_ofp, "ERROR: in UDP connection\n");
+	fflush(debg_ofp);
+	return 1;
+    }
+    ruft_server_pkt_info_to_ctx(pkt, ctx, debg_ofp);
+    ruft_server_print_pkt_ctx(*ctx, debg_ofp);
+    return 0;
+}
 int ruft_server_process_req(ruft_pkt_ctx_t ctx,
 			    ruft_server_rqst_info_t *rqst_info, FILE *debg_ofp)
 {
@@ -210,7 +236,7 @@ int ruft_server_send_err_msg(ruft_pkt_ctx_t req_ctx,
 			     ruft_server_rqst_info_t rqst_info, FILE *debg_ofp)
 {
     ruft_pkt_ctx_t  reply_ctx;
-    int             status;
+    int             status = 0;
 
     reply_ctx.is_ack = TRUE;
     reply_ctx.is_data_pkt = FALSE;
@@ -226,6 +252,25 @@ int ruft_server_send_err_msg(ruft_pkt_ctx_t req_ctx,
     status = ruft_server_send_pkt(reply_ctx, rqst_info, debg_ofp);
     return status;
     
+}
+int ruft_server_handle_err(ruft_pkt_ctx_t req_ctx,
+			   ruft_server_rqst_info_t rqst_info, FILE *debg_ofp)
+{
+    ruft_pkt_ctx_t          ctx;
+    ruft_server_rqst_info_t recv_rqst_info;
+    int                     status;
+    bzero(&ctx, sizeof(ctx));
+    server_state = SV_REPLY_ERR;
+    status = ruft_server_send_err_msg(ctx, rqst_info, debg_ofp);
+    if (status != 0) {
+	return status;
+    }
+    
+    status = ruft_server_recv_pkt(&ctx, &recv_rqst_info, debg_ofp);
+    if (status != 0) {
+	return status;
+    }
+    return status;
 }
 int ruft_server_handle_pkt(ruft_pkt_info_t pkt,struct sockaddr_in cli_addr,
 			   int cli_len,FILE *debg_ofp)
@@ -252,8 +297,7 @@ int ruft_server_handle_pkt(ruft_pkt_info_t pkt,struct sockaddr_in cli_addr,
 	ruft_server_send_file(ctx, rqst_info, debg_ofp);
 	break;
     case 2:
-	server_state = SV_REPLY_ERR;
-	ruft_server_send_err_msg(ctx, rqst_info, debg_ofp);
+	ruft_server_handle_err(ctx, rqst_info, debg_ofp);
 	break;
     default:
 	break;

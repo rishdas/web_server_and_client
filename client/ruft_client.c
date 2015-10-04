@@ -17,9 +17,10 @@ ruft_client_states_t client_state;
 
 typedef struct client_info_
 {
-    int            port;
-    char           *file_name;
-    struct hostent *server_addr;
+    int                port;
+    char               *file_name;
+    struct hostent     *server_addr;
+    struct sockaddr_in serv_sock_addr;
 } client_info_t;
     
 int cleanup(int serv_sock_fd, FILE *debg_ofp)
@@ -143,7 +144,7 @@ int ruft_client_pkt_ctx_to_info(ruft_pkt_info_t *pkt, ruft_pkt_ctx_t ctx,
 
 int ruft_client_print_pkt_ctx(ruft_pkt_ctx_t ctx, FILE *debg_ofp)
 {
-    fprintf(stdout, "Recieved Message :\nAck : %s \n"\
+    fprintf(stdout, "Message :\nAck : %s \n"\
 	    "Data Pkt: %s\nLast Pkt: %s\n"\
 	    "Advertised Window : %d \nAck No: %d \nSeq No: %d\n"\
 	    "Payload Length: %d \nPayload: %s\n",
@@ -166,7 +167,7 @@ int ruft_client_build_get_rqst(ruft_pkt_ctx_t *ctx, client_info_t client_info,
     ctx->is_ack = FALSE;
     ctx->is_data_pkt = FALSE;
     ctx->is_last_pkt = FALSE;
-    ctx->awnd = 1;
+    ctx->awnd = MAX_PAYLOAD; //TODO
     ctx->ack_no = 0;
     ctx->seq_no = 1;
     ctx->payload_length = strlen(client_info.file_name)+strlen("GET")+1;
@@ -175,6 +176,66 @@ int ruft_client_build_get_rqst(ruft_pkt_ctx_t *ctx, client_info_t client_info,
     ruft_client_print_pkt_ctx(*ctx, debg_ofp);
     return 0;
 }
+int ruft_client_send_pkt(ruft_pkt_ctx_t ctx, client_info_t client_info,
+			 FILE *debg_ofp)
+{
+    ruft_pkt_info_t   pkt;
+    int               status;
+    
+    bzero(&pkt, sizeof(pkt));
+
+    ruft_client_pkt_ctx_to_info(&pkt, ctx, debg_ofp);
+    status = sendto(client_sock_fd, &(pkt), sizeof(pkt), 0,
+		    (struct sockaddr *)&(client_info.serv_sock_addr),
+		    sizeof(client_info.serv_sock_addr));
+    if (status < 0) {
+	fprintf(stderr, "Error writing into the socket\n");
+	fprintf(debg_ofp, "Error writing into the socket\n");
+	close(client_sock_fd);
+	return -1;
+    }
+    return 0;
+}
+int ruft_client_recv_pkt(ruft_pkt_ctx_t *ctx, client_info_t client_info,
+			  FILE *debg_ofp)
+{
+    ruft_pkt_info_t    pkt;
+    struct sockaddr_in server_addr;
+    size_t             server_addr_len;
+    int                status;
+    
+    bzero(&pkt, sizeof(pkt));
+
+    status = recvfrom(client_sock_fd, &(pkt), sizeof(pkt), 0,
+		      (struct sockaddr *)&server_addr,
+		      (socklen_t *)&server_addr_len);
+    if (status < 0) {
+	fprintf(stderr, "Error writing into the socket\n");
+	fprintf(debg_ofp, "Error writing into the socket\n");
+	close(client_sock_fd);
+	return -1;
+    }
+    ruft_client_pkt_info_to_ctx(pkt, ctx, debg_ofp);
+    ruft_client_print_pkt_ctx(*ctx, debg_ofp);
+    return 0;
+}
+int ruft_client_send_ack(ruft_pkt_ctx_t req_ctx, client_info_t client_info,
+			 FILE *debg_ofp)
+{
+    ruft_pkt_ctx_t ack_ctx;
+    int            status;
+
+    ack_ctx.is_ack = TRUE;
+    ack_ctx.is_data_pkt = FALSE;
+    ack_ctx.is_last_pkt = TRUE;
+    ack_ctx.ack_no = req_ctx.seq_no+1;
+    ack_ctx.seq_no = req_ctx.ack_no+1;
+    ack_ctx.awnd = MAX_PAYLOAD;
+    ack_ctx.payload_length = 0;
+    ack_ctx.payload = NULL;
+    status = ruft_client_send_pkt(ack_ctx, client_info, debg_ofp);
+    return status;
+}
 int main(int argc, char *argv[])
 {
 
@@ -182,10 +243,8 @@ int main(int argc, char *argv[])
     client_info_t      client_info;
     char               file_name[] = "udp_client_trace.log\0";
     struct sockaddr_in server_addr;
-    ruft_pkt_info_t    pkt;
     ruft_pkt_ctx_t     ctx;
     
-    bzero(&pkt, sizeof(pkt));
     bzero(&ctx, sizeof(ctx));
     signal(SIGPIPE, SIG_IGN);
     debg_ofp = fopen(file_name, "w");
@@ -203,30 +262,18 @@ int main(int argc, char *argv[])
 	fclose(debg_ofp);
 	exit(1);
     }
+    client_info.serv_sock_addr = server_addr;
     client_state = CL_SEND_REQUEST;
     ruft_client_build_get_rqst(&ctx, client_info, debg_ofp);
-    ruft_client_pkt_ctx_to_info(&pkt, ctx, debg_ofp);
 
-    status = sendto(client_sock_fd, &(pkt), sizeof(pkt), 0,
-		    (struct sockaddr *)&server_addr, sizeof(server_addr));
-    if (status < 0) {
-	fprintf(stderr, "Error writing into the socket\n");
-	fprintf(debg_ofp, "Error writing into the socket\n");
-	close(client_sock_fd);
-	return -1;
-    }
-    bzero(&pkt, sizeof(pkt));
+    ruft_client_send_pkt(ctx, client_info, debg_ofp);
     bzero(&ctx, sizeof(ctx));
-    status = recvfrom(client_sock_fd, &pkt, sizeof(pkt), 0, NULL, NULL);
-    if (status < 0) {
-	fprintf(stderr, "Error reading from the socket\n");
-	fprintf(debg_ofp, "Error reading into the socket\n");
-	close(client_sock_fd);
-	return -1;
+    ruft_client_recv_pkt(&ctx, client_info, debg_ofp);
+
+    if (ctx.is_last_pkt == TRUE && ctx.is_ack == TRUE
+	&& ctx.is_data_pkt == FALSE) {
+	ruft_client_send_ack(ctx, client_info, debg_ofp);
     }
-    ruft_client_pkt_info_to_ctx(pkt, &ctx, debg_ofp);
-    ruft_client_print_pkt_ctx(ctx, debg_ofp);
-    
     fclose(debg_ofp);
     return 0;
 }

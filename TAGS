@@ -1,20 +1,23 @@
 
-client/ruft_client.c,492
+client/ruft_client.c,597
 FILE *debg_ofp;debg_ofp13,220
 FILE     *ifp;ifp14,236
 int  client_sock_fd;15,251
 ruft_client_states_t client_state;16,272
 typedef struct client_info_18,308
-} client_info_t;23,427
-int cleanup(25,449
-int parse_cmd_line_args(36,624
-int ruft_client_bootstrap(62,1425
-int ruft_client_pkt_info_to_ctx(82,2074
-int ruft_client_pkt_ctx_to_info(113,2844
-int ruft_client_print_pkt_ctx(144,3537
-int ruft_client_free_ctx(158,4030
-int ruft_client_build_get_rqst(163,4116
-int main(178,4621
+} client_info_t;24,478
+int cleanup(26,500
+int parse_cmd_line_args(37,675
+int ruft_client_bootstrap(63,1476
+int ruft_client_pkt_info_to_ctx(83,2125
+int ruft_client_pkt_ctx_to_info(114,2895
+int ruft_client_print_pkt_ctx(145,3588
+int ruft_client_free_ctx(159,4072
+int ruft_client_build_get_rqst(164,4158
+int ruft_client_send_pkt(179,4680
+int ruft_client_recv_pkt(199,5268
+int ruft_client_send_ack(222,5966
+int main(239,6470
 
 ruft.h,864
 #define MAX_PAYLOAD 2,1
@@ -46,23 +49,25 @@ typedef enum ruft_server_states_ 56,989
     SV_FAST_RECOV62,1110
 }ruft_server_states_t;ruft_server_states_t63,1128
 
-ruft_server.c,652
+ruft_server.c,724
 FILE *debg_ofp;debg_ofp13,223
 int udp_serv_sock_fd;14,239
 ruft_server_states_t server_state;15,261
 typedef struct ruft_server_rqst_info_20,339
-} ruft_server_rqst_info_t;25,458
-int cleanup(26,485
-void int_handler(37,660
-void ignore_sigpipe(42,744
-int ruft_server_bootstrap(55,1021
-int ruft_server_pkt_info_to_ctx(78,1728
-int ruft_server_pkt_ctx_to_info(109,2498
-int ruft_server_print_pkt_ctx(139,3190
-int ruft_server_free_ctx(153,3683
-int ruft_server_send_pkt(158,3769
-int ruft_server_process_req(182,4401
-int ruft_server_send_file(202,4931
-int ruft_server_send_err_msg(208,5056
-int ruft_server_handle_pkt(229,5800
-int main(264,6654
+} ruft_server_rqst_info_t;25,461
+int cleanup(26,488
+void int_handler(37,663
+void ignore_sigpipe(42,747
+int ruft_server_bootstrap(55,1024
+int ruft_server_pkt_info_to_ctx(78,1731
+int ruft_server_pkt_ctx_to_info(109,2501
+int ruft_server_print_pkt_ctx(139,3193
+int ruft_server_free_ctx(153,3677
+int ruft_server_send_pkt(158,3763
+int ruft_server_recv_pkt(182,4392
+int ruft_server_process_req(208,5078
+int ruft_server_send_file(229,5690
+int ruft_server_send_err_msg(235,5815
+int ruft_server_handle_err(256,6563
+int ruft_server_handle_pkt(275,7098
+int main(309,7918
