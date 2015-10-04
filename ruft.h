@@ -28,20 +28,26 @@ typedef struct ruft_pkt_ctx_
 
 typedef struct ruft_server_traff_info_
 {
-    int   seg_no;
-    int   no_ack_recvd;
-    int   is_acked;
-    int   first_byte;
-    int   last_byte;
+    int            seg_no;
+    int            no_ack_recvd;
+    int            is_acked;
+    int            first_byte;
+    int            last_byte;
+    struct timeval sent_time;
+    struct timeval ack_recv_time;
+    unsigned long  rtt;
 } ruft_server_traff_info_t;
 
 typedef struct ruft_client_traff_info_
 {
-    int   seg_no;
-    int   no_ack_sent;
-    int   acked;
-    int   first_byte;
-    int   last_byte;
+    int            seg_no;
+    int            no_ack_sent;
+    int            acked;
+    int            first_byte;
+    int            last_byte;
+    struct timeval ack_sent_time;
+    struct timeval data_recv_time;
+    long           rtt;
 } ruft_client_traff_info_t;
 
 typedef enum ruft_client_states_ {
