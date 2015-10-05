@@ -1,2 +1,20 @@
-# reliable udp file transfer
+# reliable udp file transfer(ruft)
 # Taragaryen Server and Martell Client
+
+##Ruft Header##
++--------------------------------+
+| Flags(16 bits) | Advertised Win|
++--------------------------------+
+|       Acknowledgement No       |
++--------------------------------+
+|         Sequence no            |
++--------------------------------+
+|        Payload Length          |
++--------------------------------+
+|           Payload              |
+|                                |
+.                                .
+.                                .
+.                                .
+|                                |
++--------------------------------+
