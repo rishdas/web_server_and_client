@@ -14,6 +14,8 @@ FILE *debg_ofp;
 FILE     *ifp;
 int  client_sock_fd;
 ruft_client_states_t client_state;
+ruft_client_traff_info_t *traff_info;
+unsigned int max_wd;
 
 typedef struct client_info_
 {
@@ -33,7 +35,27 @@ int cleanup(int serv_sock_fd, FILE *debg_ofp)
     }
     return 0;
 }
-
+int ruft_client_create_traff_window(client_info_t rqst_info,
+				    FILE *debg_ofp)
+{
+    switch(client_state)
+    {
+    case CL_SEND_REQUEST:
+	max_wd =1;
+	break;
+    case CL_RECV_ERROR:
+	max_wd = 1;
+	break;
+    case CL_SLOW_START:
+	max_wd = max_wd+1;
+    default:
+	break;
+    }
+    traff_info = (ruft_client_traff_info_t *)
+	realloc(traff_info, max_wd*sizeof(ruft_client_traff_info_t));
+    bzero(traff_info, max_wd*sizeof(traff_info));
+    return 0;
+}
 int parse_cmd_line_args(int argc, char *argv[],
 			client_info_t *client_info, FILE *debg_ofp)
 {   
@@ -56,6 +78,32 @@ int parse_cmd_line_args(int argc, char *argv[],
     fprintf(debg_ofp, "Port No: %d\t", client_info->port);
     fprintf(debg_ofp, "File Name: %s\t\n", client_info->file_name);
     
+    return 0;
+    
+}
+
+int ruft_client_set_ack_sent_time(unsigned int index)
+{
+    gettimeofday(&(traff_info[index].ack_sent_time), 0);
+    return 0;
+}
+
+int ruft_client_set_data_recv_time(unsigned int index)
+{
+    gettimeofday(&(traff_info[index].data_recv_time), 0);
+    traff_info[index].rtt = (traff_info[index].data_recv_time.tv_sec
+			     -traff_info[index].ack_sent_time.tv_sec)*1000000
+	+ traff_info[index].data_recv_time.tv_usec
+	- traff_info[index].ack_sent_time.tv_usec;
+    return 0;
+}
+
+int ruft_client_set_ack_sent(unsigned int index)
+{
+    traff_info[index].no_ack_sent = traff_info[index].no_ack_sent + 1;
+    if (traff_info[index].no_ack_sent < 2) {
+	ruft_client_set_ack_sent_time(index);
+    }
     return 0;
     
 }
@@ -148,21 +196,39 @@ int ruft_client_pkt_ctx_to_info(ruft_pkt_info_t *pkt, ruft_pkt_ctx_t ctx,
 
 int ruft_client_print_pkt_ctx(ruft_pkt_ctx_t ctx, FILE *debg_ofp)
 {
+    int i = 0;
     fprintf(stdout, "Message :\nAck : %s \n"\
 	    "Data Pkt: %s\nLast Pkt: %s\n"\
 	    "Advertised Window : %d \nAck No: %d \nSeq No: %d\n"\
-	    "Payload Length: %d \nPayload: %s\n",
+	    "Payload Length: %d \n",
 	    (ctx.is_ack == TRUE)?"TRUE":"FALSE",
 	    (ctx.is_data_pkt == TRUE)?"TRUE":"FALSE",
 	    (ctx.is_last_pkt == TRUE)?"TRUE":"FALSE",
 	    ctx.awnd, ctx.ack_no, ctx.seq_no,
-	    ctx.payload_length, ctx.payload);
+	    ctx.payload_length);
+    fprintf(stdout, "Payload: ");
+    while(i<ctx.payload_length)
+    {
+	fprintf(stdout,"%c", ctx.payload[i]);
+	i++;
+    }
+    fprintf(stdout, "\n");
     return 0;
 }
 
 int ruft_client_free_ctx(ruft_pkt_ctx_t ctx)
 {
     free(ctx.payload);
+    return 0;
+}
+int ruft_client_add_traff_info(ruft_pkt_ctx_t ctx, unsigned int index,
+			       FILE *debg_ofp)
+{
+    traff_info[index].seg_no = index;
+    traff_info[index].no_ack_sent = 0;
+    traff_info[index].is_acked = FALSE;
+    traff_info[index].first_byte = ctx.seq_no;
+    traff_info[index].last_byte = ctx.payload_length + ctx.seq_no -1;
     return 0;
 }
 int ruft_client_build_get_rqst(ruft_pkt_ctx_t *ctx, client_info_t client_info,
@@ -225,14 +291,14 @@ int ruft_client_recv_pkt(ruft_pkt_ctx_t *ctx, client_info_t client_info,
     return 0;
 }
 int ruft_client_send_ack(ruft_pkt_ctx_t req_ctx, client_info_t client_info,
-			 FILE *debg_ofp)
+			 int is_last_pkt, FILE *debg_ofp)
 {
     ruft_pkt_ctx_t ack_ctx;
     int            status;
 
     ack_ctx.is_ack = TRUE;
     ack_ctx.is_data_pkt = FALSE;
-    ack_ctx.is_last_pkt = TRUE;
+    ack_ctx.is_last_pkt = is_last_pkt;
     ack_ctx.ack_no = req_ctx.seq_no+1;
     ack_ctx.seq_no = req_ctx.ack_no;
     ack_ctx.awnd = MAX_PAYLOAD;
@@ -240,6 +306,53 @@ int ruft_client_send_ack(ruft_pkt_ctx_t req_ctx, client_info_t client_info,
     ack_ctx.payload = NULL;
     status = ruft_client_send_pkt(ack_ctx, client_info, debg_ofp);
     return status;
+}
+int ruft_client_handle_reply(ruft_pkt_ctx_t req_ctx, client_info_t client_info,
+			     FILE *debg_ofp)
+{
+    ruft_pkt_ctx_t ctx;
+    unsigned int i;
+
+    bzero(&ctx, sizeof(ctx));
+    
+    ruft_client_recv_pkt(&ctx, client_info, debg_ofp);
+    if (ctx.is_last_pkt == TRUE && ctx.is_ack == TRUE
+	&& ctx.is_data_pkt == FALSE) {
+	ruft_client_set_data_recv_time(0);
+	fprintf(stdout, "RTT: %lu\n", traff_info[0].rtt);
+	ruft_client_send_ack(ctx, client_info, TRUE, debg_ofp);
+	client_state = CL_FILE_RCVD;
+	return 0;
+    }
+    i = 1;
+    client_state = CL_SLOW_START;
+    while(client_state != CL_FILE_RCVD)
+    {
+	ruft_client_set_data_recv_time(i-1);
+	fprintf(stdout, "RTT: %lu\n", traff_info[i-1].rtt);
+	ruft_client_create_traff_window(client_info, debg_ofp);
+	ruft_client_add_traff_info(ctx, i, debg_ofp);
+	if (ctx.is_last_pkt != TRUE) {
+	    ruft_client_send_ack(ctx, client_info, FALSE, debg_ofp);
+	} else {
+	    ruft_client_send_ack(ctx, client_info, TRUE, debg_ofp);
+	    client_state = CL_FILE_RCVD;
+	    return 0;
+	}
+	ruft_client_set_ack_sent(i);
+	bzero(&ctx, sizeof(ctx));
+	ruft_client_recv_pkt(&ctx, client_info, debg_ofp);
+	if (ctx.is_last_pkt == TRUE && ctx.is_ack == TRUE) {
+	    ruft_client_set_data_recv_time(i);
+	    fprintf(stdout, "RTT: %lu\n", traff_info[0].rtt);
+	    ruft_client_send_ack(ctx, client_info, TRUE, debg_ofp);
+	    client_state = CL_FILE_RCVD;
+	    return 0;
+	}
+	i++;
+
+    }
+    return 0;
 }
 int main(int argc, char *argv[])
 {
@@ -249,7 +362,8 @@ int main(int argc, char *argv[])
     char               file_name[] = "udp_client_trace.log\0";
     struct sockaddr_in server_addr;
     ruft_pkt_ctx_t     ctx;
-    
+
+    traff_info = NULL;
     bzero(&ctx, sizeof(ctx));
     signal(SIGPIPE, SIG_IGN);
     debg_ofp = fopen(file_name, "w");
@@ -269,15 +383,13 @@ int main(int argc, char *argv[])
     }
     client_info.serv_sock_addr = server_addr;
     client_state = CL_SEND_REQUEST;
-    ruft_client_build_get_rqst(&ctx, client_info, debg_ofp);
-
-    ruft_client_send_pkt(ctx, client_info, debg_ofp);
-    bzero(&ctx, sizeof(ctx));
-    ruft_client_recv_pkt(&ctx, client_info, debg_ofp);
-
-    if (ctx.is_last_pkt == TRUE && ctx.is_ack == TRUE
-	&& ctx.is_data_pkt == FALSE) {
-	ruft_client_send_ack(ctx, client_info, debg_ofp);
+    while (client_state == CL_SEND_REQUEST) {
+	ruft_client_build_get_rqst(&ctx, client_info, debg_ofp);
+	ruft_client_create_traff_window(client_info, debg_ofp);
+	ruft_client_add_traff_info(ctx, 0, debg_ofp);
+	ruft_client_set_ack_sent(0);
+	ruft_client_send_pkt(ctx, client_info, debg_ofp);
+	ruft_client_handle_reply(ctx, client_info, debg_ofp);	
     }
     fclose(debg_ofp);
     return 0;

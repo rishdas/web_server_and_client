@@ -273,10 +273,121 @@ int ruft_server_set_ack_recv(unsigned int index)
     return 0;
     
 }
+int ruft_server_set_max_wd(ruft_server_rqst_info_t rqst_info, FILE *debg_ofp)
+{
+    FILE        *uri_file_p;
+    struct stat f_stat;
+    int         uri_file_fd;
+    int         no_of_segments;
+    int         remainder = 0;
+    
+    uri_file_p = fopen(rqst_info.file_name, "r");
+    uri_file_fd = fileno(uri_file_p);
+    fstat(uri_file_fd, &f_stat);
+    no_of_segments = f_stat.st_size/MAX_PAYLOAD;
+    if (f_stat.st_size % MAX_PAYLOAD != 0) {
+	no_of_segments = no_of_segments + 1;
+	remainder = f_stat.st_size % MAX_PAYLOAD;
+    }
+    max_wd = no_of_segments;
+    fclose(uri_file_p);
+    return 0;
+ 
+}
+int ruft_server_create_traff_window(ruft_server_rqst_info_t rqst_info,
+				    FILE *debg_ofp)
+{
+    switch(server_state)
+    {
+    case SV_REPLY_ERR:
+	max_wd = 1;
+	break;
+    case SV_SLOW_START:
+	ruft_server_set_max_wd(rqst_info, debg_ofp);
+	break;
+    default:
+	break;
+    }
+    traff_info = (ruft_server_traff_info_t *)
+	malloc(max_wd*sizeof(ruft_server_traff_info_t));
+    bzero(traff_info, max_wd*sizeof(traff_info));
+    return 0;
+}
+int ruft_server_send_file_seg(ruft_pkt_ctx_t req_ctx,
+			      ruft_server_rqst_info_t rqst_info, int is_last_pkt,
+			      unsigned int index, FILE *debg_ofp)
+{
+    ruft_pkt_ctx_t  reply_ctx;
+    int             status = 0;
+    FILE            *uri_file_p;
+    int             last_byte = MAX_PAYLOAD;
+
+    uri_file_p = fopen(rqst_info.file_name, "r");
+    if (is_last_pkt != TRUE) {
+	fseek(uri_file_p, index*MAX_PAYLOAD, SEEK_SET);
+	last_byte = MAX_PAYLOAD;
+    } else {
+	fseek(uri_file_p, 0, SEEK_END);
+	last_byte = ftell(uri_file_p);
+	fseek(uri_file_p, index*MAX_PAYLOAD, SEEK_SET);
+	last_byte = last_byte - index*MAX_PAYLOAD;
+    }
+    reply_ctx.is_ack = TRUE;
+    reply_ctx.is_data_pkt = TRUE;
+    reply_ctx.is_last_pkt = is_last_pkt;
+    
+    reply_ctx.ack_no = req_ctx.seq_no+req_ctx.payload_length;
+    reply_ctx.seq_no = req_ctx.ack_no;
+    reply_ctx.awnd = MAX_PAYLOAD; //TODO
+    reply_ctx.payload_length = last_byte; //TODO
+    reply_ctx.payload = (char *)malloc(reply_ctx.payload_length);
+    bzero(reply_ctx.payload, reply_ctx.payload_length);
+    fread(reply_ctx.payload, 1, last_byte, uri_file_p);
+    ruft_server_add_traff_info(reply_ctx, index, debg_ofp);
+    ruft_server_set_sent_time(index);
+    status = ruft_server_send_pkt(reply_ctx, rqst_info, debg_ofp);
+    return status;
+}
 int ruft_server_send_file(ruft_pkt_ctx_t req_ctx,
 			  ruft_server_rqst_info_t rqst_info, FILE *debg_ofp)
 {
+    ruft_pkt_ctx_t ctx;
+    unsigned int   i = 0;
+    int            is_last_pkt = FALSE;
+    int            status=0;
+    server_state = SV_SLOW_START;
+    ruft_server_create_traff_window(rqst_info, debg_ofp);
+    ctx = req_ctx;
+
+    if (i == max_wd-1) {
+	is_last_pkt = TRUE;
+    }
     
+    while(server_state != SV_FILE_SENT)
+    {
+	ruft_server_send_file_seg(ctx, rqst_info, is_last_pkt, i, debg_ofp);
+	bzero(&ctx, sizeof(ctx));
+	status = ruft_server_recv_pkt(&ctx, &rqst_info, debg_ofp);
+	if (status != 0) {
+	    return status;
+	}
+	if (ctx.is_ack == TRUE && ctx.is_data_pkt == FALSE
+	    && ctx.is_last_pkt == FALSE){
+	    ruft_server_set_ack_recv(i);
+	    fprintf(stdout, "\nRTT: %lu\n", traff_info[i].rtt);
+	}
+	if (ctx.is_ack == TRUE && ctx.is_data_pkt == FALSE
+	    && ctx.is_last_pkt == TRUE){
+	    ruft_server_set_ack_recv(i);
+	    fprintf(stdout, "\nRTT: %lu\n", traff_info[i].rtt);
+	    server_state = SV_FILE_SENT;
+	}
+	i++;
+	if (i == max_wd-1) {
+	    is_last_pkt = TRUE;
+	}
+	
+    }
     return 0;
 }
 
@@ -306,22 +417,7 @@ int ruft_server_send_err_msg(ruft_pkt_ctx_t req_ctx,
     return status;
     
 }
-int ruft_server_create_traff_window(ruft_server_rqst_info_t rqst_info,
-				    FILE *debg_ofp)
-{
-    switch(server_state)
-    {
-    case SV_REPLY_ERR:
-	max_wd = 1;
-	break;
-    default:
-	break;
-    }
-    traff_info = (ruft_server_traff_info_t *)
-	malloc(max_wd*sizeof(ruft_server_traff_info_t));
-    bzero(traff_info, max_wd*sizeof(traff_info));
-    return 0;
-}
+
 int ruft_server_handle_err(ruft_pkt_ctx_t req_ctx,
 			   ruft_server_rqst_info_t rqst_info, FILE *debg_ofp)
 {
@@ -378,11 +474,13 @@ int ruft_server_handle_pkt(ruft_pkt_info_t pkt,struct sockaddr_in cli_addr,
 	ruft_server_handle_err(ctx, rqst_info, debg_ofp);
 	break;
     }
+    fprintf(stdout, "\nCounter\n");
+    fflush(stdout);
     server_state = SV_WAIT;
-    if (traff_info != NULL) {
-    	free(traff_info);
-    }
-    traff_info = NULL;
+    /* if (traff_info != NULL) { */
+    /* 	free(traff_info); */
+    /* } */
+    /* traff_info = NULL; */
     return 0;
 }
 
