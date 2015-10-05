@@ -273,6 +273,14 @@ int ruft_server_set_ack_recv(unsigned int index)
     return 0;
     
 }
+long int ruft_server_get_file_size(FILE *uri_file_p)
+{
+    long int size;
+    fseek(uri_file_p, 0, SEEK_END);
+    size = ftell(uri_file_p);
+    fseek(uri_file_p, 0, SEEK_SET);
+    return size;
+}
 int ruft_server_set_max_wd(ruft_server_rqst_info_t rqst_info, FILE *debg_ofp)
 {
     FILE        *uri_file_p;
@@ -289,7 +297,7 @@ int ruft_server_set_max_wd(ruft_server_rqst_info_t rqst_info, FILE *debg_ofp)
 	no_of_segments = no_of_segments + 1;
 	remainder = f_stat.st_size % MAX_PAYLOAD;
     }
-    max_wd = no_of_segments;
+    max_wd = no_of_segments+1;//For teh control pkt
     fclose(uri_file_p);
     return 0;
  
@@ -346,8 +354,43 @@ int ruft_server_send_file_seg(ruft_pkt_ctx_t req_ctx,
     ruft_server_add_traff_info(reply_ctx, index, debg_ofp);
     ruft_server_set_sent_time(index);
     status = ruft_server_send_pkt(reply_ctx, rqst_info, debg_ofp);
+    fclose(uri_file_p);
     return status;
 }
+
+int ruft_server_send_file_size(ruft_pkt_ctx_t req_ctx,
+			       ruft_server_rqst_info_t rqst_info,
+			       unsigned int index,FILE *debg_ofp)
+{
+    ruft_pkt_ctx_t  reply_ctx;
+    int             status = 0;
+    char            buf[MAXLINE];
+    FILE            *uri_file_p;
+    
+    uri_file_p = fopen(rqst_info.file_name, "r");
+    sprintf(buf, "file_size: %ld", ruft_server_get_file_size(uri_file_p));
+    fclose(uri_file_p);
+    
+    reply_ctx.is_ack = TRUE;
+    reply_ctx.is_data_pkt = FALSE;
+    reply_ctx.is_last_pkt = FALSE;
+    
+    reply_ctx.ack_no = req_ctx.seq_no+req_ctx.payload_length;
+    reply_ctx.seq_no = req_ctx.ack_no;
+    reply_ctx.awnd = MAX_PAYLOAD; //TODO
+    reply_ctx.payload_length = strlen(buf)+1;
+    reply_ctx.payload = (char *)malloc(reply_ctx.payload_length);
+    bzero(reply_ctx.payload, reply_ctx.payload_length);
+    strncpy(reply_ctx.payload, buf,
+	    reply_ctx.payload_length-1);
+    reply_ctx.payload[reply_ctx.payload_length-1] = '\0';
+    ruft_server_add_traff_info(reply_ctx, index, debg_ofp);
+    ruft_server_set_sent_time(index);
+    status = ruft_server_send_pkt(reply_ctx, rqst_info, debg_ofp);
+    return status;
+    
+}
+
 int ruft_server_send_file(ruft_pkt_ctx_t req_ctx,
 			  ruft_server_rqst_info_t rqst_info, FILE *debg_ofp)
 {
@@ -383,7 +426,7 @@ int ruft_server_send_file(ruft_pkt_ctx_t req_ctx,
 	    server_state = SV_FILE_SENT;
 	}
 	i++;
-	if (i == max_wd-1) {
+	if (i == max_wd-2) {
 	    is_last_pkt = TRUE;
 	}
 	

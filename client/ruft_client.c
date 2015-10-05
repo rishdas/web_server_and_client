@@ -307,6 +307,25 @@ int ruft_client_send_ack(ruft_pkt_ctx_t req_ctx, client_info_t client_info,
     status = ruft_client_send_pkt(ack_ctx, client_info, debg_ofp);
     return status;
 }
+int ruft_client_write_to_file(ruft_pkt_ctx_t ctx,client_info_t client_info,
+			      FILE *debg_ofp)
+{
+    FILE *dest_file_p;
+    unsigned int i = 0;
+    static first_time = TRUE;
+    if(first_time == TRUE) {
+	dest_file_p = fopen(client_info.file_name, "w");
+	first_time = FALSE;
+    } else {
+	dest_file_p = fopen(client_info.file_name, "a");
+    }
+
+    fwrite(ctx.payload, 1, ctx.payload_length, dest_file_p);
+    
+    fclose(dest_file_p);
+    
+    return 0;
+}
 int ruft_client_handle_reply(ruft_pkt_ctx_t req_ctx, client_info_t client_info,
 			     FILE *debg_ofp)
 {
@@ -328,6 +347,7 @@ int ruft_client_handle_reply(ruft_pkt_ctx_t req_ctx, client_info_t client_info,
     client_state = CL_SLOW_START;
     while(client_state != CL_FILE_RCVD)
     {
+	ruft_client_write_to_file(ctx, client_info, debg_ofp);
 	ruft_client_set_data_recv_time(i-1);
 	fprintf(stdout, "RTT: %lu\n", traff_info[i-1].rtt);
 	ruft_client_create_traff_window(client_info, debg_ofp);
@@ -343,6 +363,7 @@ int ruft_client_handle_reply(ruft_pkt_ctx_t req_ctx, client_info_t client_info,
 	bzero(&ctx, sizeof(ctx));
 	ruft_client_recv_pkt(&ctx, client_info, debg_ofp);
 	if (ctx.is_last_pkt == TRUE && ctx.is_ack == TRUE) {
+	    ruft_client_write_to_file(ctx, client_info, debg_ofp);
 	    ruft_client_set_data_recv_time(i);
 	    fprintf(stdout, "RTT: %lu\n", traff_info[0].rtt);
 	    ruft_client_send_ack(ctx, client_info, TRUE, debg_ofp);
