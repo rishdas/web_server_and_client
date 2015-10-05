@@ -16,6 +16,9 @@ int  client_sock_fd;
 ruft_client_states_t client_state;
 ruft_client_traff_info_t *traff_info;
 unsigned int max_wd;
+unsigned long int est_rtt = 5000;
+unsigned long int dev_rtt = 20;
+unsigned long int timeout = 5000;
 
 typedef struct client_info_
 {
@@ -81,7 +84,14 @@ int parse_cmd_line_args(int argc, char *argv[],
     return 0;
     
 }
-
+int ruft_client_set_ett_timeout(unsigned long rtt)
+{
+    /*The Jacobson/Karels algo according to the book*/
+    est_rtt = (0.875)*est_rtt + (0.125)*(rtt);
+    dev_rtt = (0.75)*dev_rtt + (0.25)*(abs(rtt-est_rtt));
+    timeout = est_rtt + 4*dev_rtt;
+    return 0;   
+}
 int ruft_client_set_ack_sent_time(unsigned int index)
 {
     gettimeofday(&(traff_info[index].ack_sent_time), 0);
@@ -90,11 +100,14 @@ int ruft_client_set_ack_sent_time(unsigned int index)
 
 int ruft_client_set_data_recv_time(unsigned int index)
 {
+    unsigned long int rtt;
     gettimeofday(&(traff_info[index].data_recv_time), 0);
     traff_info[index].rtt = (traff_info[index].data_recv_time.tv_sec
 			     -traff_info[index].ack_sent_time.tv_sec)*1000000
 	+ traff_info[index].data_recv_time.tv_usec
 	- traff_info[index].ack_sent_time.tv_usec;
+    rtt = traff_info[index].rtt;
+    ruft_client_set_ett_timeout(rtt);
     return 0;
 }
 
@@ -338,7 +351,8 @@ int ruft_client_handle_reply(ruft_pkt_ctx_t req_ctx, client_info_t client_info,
     if (ctx.is_last_pkt == TRUE && ctx.is_ack == TRUE
 	&& ctx.is_data_pkt == FALSE) {
 	ruft_client_set_data_recv_time(0);
-	fprintf(stdout, "RTT: %lu\n", traff_info[0].rtt);
+	fprintf(stdout, "RTT: %lu Timeout: %lu\n",
+		traff_info[0].rtt, timeout);
 	ruft_client_send_ack(ctx, client_info, TRUE, debg_ofp);
 	client_state = CL_FILE_RCVD;
 	return 0;
@@ -349,7 +363,8 @@ int ruft_client_handle_reply(ruft_pkt_ctx_t req_ctx, client_info_t client_info,
     {
 	ruft_client_write_to_file(ctx, client_info, debg_ofp);
 	ruft_client_set_data_recv_time(i-1);
-	fprintf(stdout, "RTT: %lu\n", traff_info[i-1].rtt);
+	fprintf(stdout, "RTT: %lu Timeout: %lu\n",
+		traff_info[i-1].rtt, timeout);
 	ruft_client_create_traff_window(client_info, debg_ofp);
 	ruft_client_add_traff_info(ctx, i, debg_ofp);
 	if (ctx.is_last_pkt != TRUE) {
@@ -365,7 +380,8 @@ int ruft_client_handle_reply(ruft_pkt_ctx_t req_ctx, client_info_t client_info,
 	if (ctx.is_last_pkt == TRUE && ctx.is_ack == TRUE) {
 	    ruft_client_write_to_file(ctx, client_info, debg_ofp);
 	    ruft_client_set_data_recv_time(i);
-	    fprintf(stdout, "RTT: %lu\n", traff_info[0].rtt);
+	    fprintf(stdout, "RTT: %lu Timeout: %lu\n",
+		    traff_info[0].rtt, timeout);
 	    ruft_client_send_ack(ctx, client_info, TRUE, debg_ofp);
 	    client_state = CL_FILE_RCVD;
 	    return 0;

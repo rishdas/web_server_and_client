@@ -15,6 +15,10 @@ int udp_serv_sock_fd;
 ruft_server_states_t server_state;
 ruft_server_traff_info_t *traff_info;
 unsigned int max_wd;
+unsigned long int est_rtt = 5000;
+unsigned long int dev_rtt = 20;
+unsigned long int timeout = 5000;
+
 
 /*
  * Free the return value after use
@@ -250,6 +254,15 @@ int ruft_server_add_traff_info(ruft_pkt_ctx_t ctx, unsigned int index,
     traff_info[index].last_byte = ctx.payload_length + ctx.seq_no -1;
     return 0;
 }
+
+int ruft_server_set_ett_timeout(unsigned long rtt)
+{
+    /*The Jacobson/Karels algo according to the book*/
+    est_rtt = (0.875)*est_rtt + (0.125)*(rtt);
+    dev_rtt = (0.75)*dev_rtt + (0.25)*(abs(rtt-est_rtt));
+    timeout = est_rtt + 4*dev_rtt;
+    return 0;    
+}
 int ruft_server_set_sent_time(unsigned int index)
 {
     gettimeofday(&(traff_info[index].sent_time), 0);
@@ -257,11 +270,14 @@ int ruft_server_set_sent_time(unsigned int index)
 }
 int ruft_server_set_ack_recv_time(unsigned int index)
 {
+    unsigned long int rtt;
     gettimeofday(&(traff_info[index].ack_recv_time), 0);
     traff_info[index].rtt = (traff_info[index].ack_recv_time.tv_sec
 			     -traff_info[index].sent_time.tv_sec)*1000000
 	+ traff_info[index].ack_recv_time.tv_usec
 	- traff_info[index].sent_time.tv_usec;
+    rtt = traff_info[index].rtt;
+    ruft_server_set_ett_timeout(rtt);
     return 0;
 }
 int ruft_server_set_ack_recv(unsigned int index)
@@ -417,12 +433,14 @@ int ruft_server_send_file(ruft_pkt_ctx_t req_ctx,
 	if (ctx.is_ack == TRUE && ctx.is_data_pkt == FALSE
 	    && ctx.is_last_pkt == FALSE){
 	    ruft_server_set_ack_recv(i);
-	    fprintf(stdout, "\nRTT: %lu\n", traff_info[i].rtt);
+	    fprintf(stdout, "\nRTT: %lu Timeout: %lu\n",
+		    traff_info[i].rtt, timeout);
 	}
 	if (ctx.is_ack == TRUE && ctx.is_data_pkt == FALSE
 	    && ctx.is_last_pkt == TRUE){
 	    ruft_server_set_ack_recv(i);
-	    fprintf(stdout, "\nRTT: %lu\n", traff_info[i].rtt);
+	    fprintf(stdout, "\nRTT: %lu Timeout: %lu\n",
+		    traff_info[i].rtt, timeout);
 	    server_state = SV_FILE_SENT;
 	}
 	i++;
@@ -482,7 +500,8 @@ int ruft_server_handle_err(ruft_pkt_ctx_t req_ctx,
     if (ctx.is_ack == TRUE && ctx.is_last_pkt == TRUE
 	&& ctx.is_data_pkt == FALSE){
 	ruft_server_set_ack_recv(0);
-	fprintf(stdout, "\nRTT: %lu\n", traff_info[0].rtt);
+	fprintf(stdout, "\nRTT: %lu Timeout: %lu\n",
+		traff_info[0].rtt, timeout);
     }
     return status;
 }
