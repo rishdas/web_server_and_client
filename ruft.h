@@ -43,6 +43,7 @@ typedef struct ruft_client_traff_info_
 {
     int            seg_no;
     int            no_ack_sent;
+    int            no_data_recvd;
     int            is_acked;
     int            first_byte;
     int            last_byte;
