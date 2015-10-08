@@ -175,9 +175,10 @@ int ruft_client_pkt_info_to_ctx(ruft_pkt_info_t pkt, ruft_pkt_ctx_t *ctx,
     ctx->seq_no = ntohl(pkt.seq_no);
     ctx->awnd = ntohs(pkt.awnd);
     ctx->payload_length = ntohl(pkt.payload_length);
-    ctx->payload = (char *)malloc(ctx->payload_length);
-    if (ctx ->payload != NULL) {
+    if (ctx ->payload_length != 0) {
 	strncpy(ctx->payload, pkt.payload, ctx->payload_length);
+    } else {
+	ctx->payload[0] = '\0';
     }
     return 0;
 }
@@ -220,6 +221,9 @@ int ruft_client_pkt_ctx_to_info(ruft_pkt_info_t *pkt, ruft_pkt_ctx_t ctx,
 int ruft_client_print_pkt_ctx(ruft_pkt_ctx_t ctx, FILE *debg_ofp)
 {
     int i = 0;
+    
+    fprintf(stdout, "\n+++++++++++++Packet Seq: %d++++++++++++++++\n",
+	    ctx.seq_no);
     fprintf(stdout, "Message :\nAck : %s \n"\
 	    "Data Pkt: %s\nLast Pkt: %s\n"\
 	    "Advertised Window : %d \nAck No: %d \nSeq No: %d\n"\
@@ -236,14 +240,15 @@ int ruft_client_print_pkt_ctx(ruft_pkt_ctx_t ctx, FILE *debg_ofp)
 	i++;
     }
     fprintf(stdout, "\n");
+    fprintf(stdout, "\n+++++++++++++++++++++++++++++++++++++++++++\n");
     return 0;
 }
 
-int ruft_client_free_ctx(ruft_pkt_ctx_t ctx)
-{
-    free(ctx.payload);
-    return 0;
-}
+/* int ruft_client_free_ctx(ruft_pkt_ctx_t ctx) */
+/* { */
+/*     free(ctx.payload); */
+/*     return 0; */
+/* } */
 int ruft_client_add_traff_info(ruft_pkt_ctx_t ctx, unsigned int index,
 			       FILE *debg_ofp)
 {
@@ -261,10 +266,9 @@ int ruft_client_build_get_rqst(ruft_pkt_ctx_t *ctx, client_info_t client_info,
     ctx->is_data_pkt = FALSE;
     ctx->is_last_pkt = FALSE;
     ctx->awnd = MAX_PAYLOAD; //TODO
-    ctx->ack_no = 0;
+    ctx->ack_no = 1;
     ctx->seq_no = 1;
     ctx->payload_length = strlen(client_info.file_name)+strlen("GET")+2;
-    ctx->payload = (char *)malloc(ctx->payload_length);
     sprintf(ctx->payload, "GET %s", client_info.file_name);
     ctx->payload[ctx->payload_length-1] = '\0';
     ruft_client_print_pkt_ctx(*ctx, debg_ofp);
@@ -365,7 +369,6 @@ int ruft_client_send_ack(ruft_pkt_ctx_t req_ctx, client_info_t client_info,
     ack_ctx.seq_no = req_ctx.ack_no;
     ack_ctx.awnd = MAX_PAYLOAD;
     ack_ctx.payload_length = 1;
-    ack_ctx.payload = (char *)malloc(1);
     ack_ctx.payload[0]='\0';
     status = ruft_client_send_pkt(ack_ctx, client_info, debg_ofp);
     return status;
@@ -383,7 +386,7 @@ int ruft_client_write_to_file(ruft_pkt_ctx_t ctx, client_info_t client_info,
 	dest_file_p = fopen(client_info.file_name, "a");
     }
 
-    fwrite(ctx.payload, 1, ctx.payload_length-1, dest_file_p);
+    fwrite(ctx.payload, 1, ctx.payload_length, dest_file_p);
     
     fclose(dest_file_p);
     

@@ -23,7 +23,7 @@ typedef struct ruft_pkt_ctx_
     int   seq_no;
     short awnd;
     int   payload_length;
-    char  *payload;
+    char  payload[MAX_PAYLOAD];
 } ruft_pkt_ctx_t;
 
 typedef struct ruft_server_traff_info_

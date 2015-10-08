@@ -107,18 +107,11 @@ int ruft_server_pkt_info_to_ctx(ruft_pkt_info_t pkt, ruft_pkt_ctx_t *ctx,
     ctx->seq_no = ntohl(pkt.seq_no);
     ctx->awnd = ntohs(pkt.awnd);
     ctx->payload_length = ntohl(pkt.payload_length);
-    ctx->payload = (char *)malloc(ctx->payload_length+1);
-    if (ctx->payload != NULL) {
-	bzero(ctx->payload, ctx->payload_length);
-	if (ctx->payload_length != 0) {
-	    strncpy(ctx->payload, pkt.payload, ctx->payload_length);
-	} else {
-	    ctx->payload[0] = '\0';
-	}
+    if (ctx->payload_length != 0) {
+	strncpy(ctx->payload, pkt.payload, ctx->payload_length);
     } else {
-	ctx->payload_length = 0;
+	ctx->payload[0] = '\0';
     }
-    return 0;
 }
 
 int ruft_server_pkt_ctx_to_info(ruft_pkt_info_t *pkt, ruft_pkt_ctx_t ctx,
@@ -157,6 +150,8 @@ int ruft_server_pkt_ctx_to_info(ruft_pkt_info_t *pkt, ruft_pkt_ctx_t ctx,
 }
 int ruft_server_print_pkt_ctx(ruft_pkt_ctx_t ctx, FILE *debg_ofp)
 {
+    fprintf(stdout, "\n+++++++++++++Packet Seq: %d++++++++++++++++\n",
+	    ctx.seq_no);
     fprintf(stdout, "Message :\nAck : %s \n"\
 	    "Data Pkt: %s\nLast Pkt: %s\n"\
 	    "Advertised Window : %d \nAck No: %d \nSeq No: %d\n"\
@@ -166,15 +161,16 @@ int ruft_server_print_pkt_ctx(ruft_pkt_ctx_t ctx, FILE *debg_ofp)
 	    (ctx.is_last_pkt == TRUE)?"TRUE":"FALSE",
 	    ctx.awnd, ctx.ack_no, ctx.seq_no,
 	    ctx.payload_length, ctx.payload);
+    fprintf(stdout, "\n+++++++++++++++++++++++++++++++++++++++++++\n");
     return 0;
 }
 
-int ruft_server_free_ctx(ruft_pkt_ctx_t *ctx)
-{
-    free(ctx->payload);
-    ctx->payload = NULL;
-    return 0;
-}
+/* int ruft_server_free_ctx(ruft_pkt_ctx_t *ctx) */
+/* { */
+/*     free(ctx->payload); */
+/*     ctx->payload = NULL; */
+/*     return 0; */
+/* } */
 int ruft_server_send_pkt(ruft_pkt_ctx_t ctx, ruft_server_rqst_info_t req_info,
 			 FILE *debg_ofp)
 {
@@ -403,6 +399,8 @@ int ruft_server_send_file_seg(ruft_pkt_ctx_t req_ctx,
     FILE            *uri_file_p;
     int             last_byte = MAX_PAYLOAD;
 
+    bzero(&reply_ctx, sizeof(reply_ctx));
+
     uri_file_p = fopen(rqst_info.file_name, "r");
     if (is_last_pkt != TRUE) {
 	fseek(uri_file_p, index*MAX_PAYLOAD, SEEK_SET);
@@ -423,63 +421,50 @@ int ruft_server_send_file_seg(ruft_pkt_ctx_t req_ctx,
     reply_ctx.ack_no = req_ctx.seq_no+req_ctx.payload_length;
     reply_ctx.seq_no = req_ctx.ack_no;
     reply_ctx.awnd = MAX_PAYLOAD; //TODO
-    reply_ctx.payload = (char *)malloc(reply_ctx.payload_length);
-    if (reply_ctx.payload != NULL) {
-	bzero(reply_ctx.payload, reply_ctx.payload_length);
-	fread(reply_ctx.payload, 1, reply_ctx.payload_length-1, uri_file_p);
-	reply_ctx.payload[reply_ctx.payload_length-1] ='\0';
-	if (ferror(uri_file_p)) {
-	    fprintf(stderr, "Error Reading file %d\n", reply_ctx.payload_length);
-	    reply_ctx.payload = NULL;
-	    reply_ctx.payload_length = 0;
-	} else if (feof(uri_file_p)) {
-	    fprintf(stderr, "EOF while Reading file %d\n",
-		    reply_ctx.payload_length);
-	    reply_ctx.payload = NULL;
-	    reply_ctx.payload_length = 0;
-	} else {
-	    fseek(uri_file_p, 0, SEEK_SET);
-	    fclose(uri_file_p);
-	}
-    }
+    
+    fread(reply_ctx.payload, 1, reply_ctx.payload_length, uri_file_p);
+
+    fseek(uri_file_p, 0, SEEK_SET);
+    fclose(uri_file_p);
+
     ruft_server_add_traff_info(reply_ctx, index, debg_ofp);
     ruft_server_set_sent_time(index);
     status = ruft_server_send_pkt(reply_ctx, rqst_info, debg_ofp);
     return status;
 }
 
-int ruft_server_send_file_size(ruft_pkt_ctx_t req_ctx,
-			       ruft_server_rqst_info_t rqst_info,
-			       unsigned int index,FILE *debg_ofp)
-{
-    ruft_pkt_ctx_t  reply_ctx;
-    int             status = 0;
-    char            buf[MAXLINE];
-    FILE            *uri_file_p;
+/* int ruft_server_send_file_size(ruft_pkt_ctx_t req_ctx, */
+/* 			       ruft_server_rqst_info_t rqst_info, */
+/* 			       unsigned int index,FILE *debg_ofp) */
+/* { */
+/*     ruft_pkt_ctx_t  reply_ctx; */
+/*     int             status = 0; */
+/*     char            buf[MAXLINE]; */
+/*     FILE            *uri_file_p; */
     
-    uri_file_p = fopen(rqst_info.file_name, "r");
-    sprintf(buf, "file_size: %ld", ruft_server_get_file_size(uri_file_p));
-    fclose(uri_file_p);
+/*     uri_file_p = fopen(rqst_info.file_name, "r"); */
+/*     sprintf(buf, "file_size: %ld", ruft_server_get_file_size(uri_file_p)); */
+/*     fclose(uri_file_p); */
     
-    reply_ctx.is_ack = TRUE;
-    reply_ctx.is_data_pkt = FALSE;
-    reply_ctx.is_last_pkt = FALSE;
+/*     reply_ctx.is_ack = TRUE; */
+/*     reply_ctx.is_data_pkt = FALSE; */
+/*     reply_ctx.is_last_pkt = FALSE; */
     
-    reply_ctx.ack_no = req_ctx.seq_no+req_ctx.payload_length;
-    reply_ctx.seq_no = req_ctx.ack_no;
-    reply_ctx.awnd = MAX_PAYLOAD; //TODO
-    reply_ctx.payload_length = strlen(buf)+1;
-    reply_ctx.payload = (char *)malloc(reply_ctx.payload_length);
-    bzero(reply_ctx.payload, reply_ctx.payload_length);
-    strncpy(reply_ctx.payload, buf,
-	    reply_ctx.payload_length-1);
-    reply_ctx.payload[reply_ctx.payload_length-1] = '\0';
-    ruft_server_add_traff_info(reply_ctx, index, debg_ofp);
-    ruft_server_set_sent_time(index);
-    status = ruft_server_send_pkt(reply_ctx, rqst_info, debg_ofp);
-    return status;
+/*     reply_ctx.ack_no = req_ctx.seq_no+req_ctx.payload_length; */
+/*     reply_ctx.seq_no = req_ctx.ack_no; */
+/*     reply_ctx.awnd = MAX_PAYLOAD; //TODO */
+/*     reply_ctx.payload_length = strlen(buf)+1; */
+/*     reply_ctx.payload = (char *)malloc(reply_ctx.payload_length); */
+/*     bzero(reply_ctx.payload, reply_ctx.payload_length); */
+/*     strncpy(reply_ctx.payload, buf, */
+/* 	    reply_ctx.payload_length-1); */
+/*     reply_ctx.payload[reply_ctx.payload_length-1] = '\0'; */
+/*     ruft_server_add_traff_info(reply_ctx, index, debg_ofp); */
+/*     ruft_server_set_sent_time(index); */
+/*     status = ruft_server_send_pkt(reply_ctx, rqst_info, debg_ofp); */
+/*     return status; */
     
-}
+/* } */
 
 int ruft_server_send_file(ruft_pkt_ctx_t req_ctx,
 			  ruft_server_rqst_info_t rqst_info, FILE *debg_ofp)
@@ -494,7 +479,7 @@ int ruft_server_send_file(ruft_pkt_ctx_t req_ctx,
     ruft_server_create_traff_window(rqst_info, debg_ofp);
     ctx = req_ctx;
 
-    if (i == max_wd-1) {
+    if (i == max_wd-2) {
 	is_last_pkt = TRUE;
     }
     
@@ -559,8 +544,6 @@ int ruft_server_send_err_msg(ruft_pkt_ctx_t req_ctx,
     reply_ctx.seq_no = req_ctx.ack_no;
     reply_ctx.awnd = MAX_PAYLOAD; //TODO
     reply_ctx.payload_length = strlen("Arya Error: File Not Found")+1;
-    reply_ctx.payload = (char *)malloc(reply_ctx.payload_length);
-    bzero(reply_ctx.payload, reply_ctx.payload_length);
     strncpy(reply_ctx.payload, "Arya Error: File Not Found",
 	    reply_ctx.payload_length-1);
     reply_ctx.payload[reply_ctx.payload_length-1] = '\0';
@@ -568,7 +551,6 @@ int ruft_server_send_err_msg(ruft_pkt_ctx_t req_ctx,
     ruft_server_set_sent_time(0);
     /*Set the time for Zeroth segment as this is error scenario*/
     status = ruft_server_send_pkt(reply_ctx, rqst_info, debg_ofp);
-    ruft_server_free_ctx(&reply_ctx);
     return status;
     
 }
@@ -630,7 +612,6 @@ int ruft_server_handle_pkt(ruft_pkt_info_t pkt,struct sockaddr_in cli_addr,
 	ruft_server_handle_err(ctx, rqst_info, debg_ofp);
 	break;
     }
-    ruft_server_free_ctx(&ctx);
     server_state = SV_WAIT;
     /* if (traff_info != NULL) { */
     /* 	free(traff_info); */
