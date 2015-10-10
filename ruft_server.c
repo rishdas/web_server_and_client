@@ -278,7 +278,13 @@ int ruft_server_recv_pkt_with_timeout(ruft_server_rqst_info_t *req_info,
 		ruft_server_pkt_info_to_ctx(pkt, &ctx, debg_ofp);
 		ruft_server_print_pkt_ctx(ctx, debg_ofp);
 		fprintf(stdout, "Pkt Recvd: %d\n", ctx.ack_no);
-		ruft_server_set_ack_recv(ctx);
+		if (ctx.is_last_pkt == TRUE) {
+		    traff_info[ctx.ack_no/MAX_PAYLOAD + 1].no_ack_recvd =
+			traff_info[ctx.ack_no/MAX_PAYLOAD +1].no_ack_recvd + 1;
+		    ruft_server_set_ack_recv(ctx);
+		} else {
+		    ruft_server_set_ack_recv(ctx);
+		}
 		recv_ctr++;
 		fprintf(stdout, "In inner while loop at %s\n", __FUNCTION__);
 		start_select = TRUE;
@@ -370,7 +376,7 @@ int ruft_server_set_ack_recv_time(unsigned int index)
 int ruft_server_set_ack_recv(ruft_pkt_ctx_t ctx)
 {
     int index = 1;
-    int wnd = ctx.ack_no / MAX_PAYLOAD;
+    int wnd = (ctx.ack_no / MAX_PAYLOAD);
 
     for (index = 1 ; index <= wnd; index++) {
 	if (traff_info[index].no_ack_recvd == 0) {
