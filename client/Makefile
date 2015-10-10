@@ -1,9 +1,9 @@
 CC=gcc
 OBJ=ruft_client.o
 DEPS=ruft.h
-CFLAGS=-I..
+CFLAGS=-I.
 %.o: %.c $(DEPS)
-	$(CC) -c -g -o $@ $<
+	$(CC) -c -o $@ $< -g
 build: ruft_client.o
 	$(CC) $(CFLAGS) -o ruft_client.bin $(OBJ) -g
 clean:
