@@ -324,7 +324,7 @@ int ruft_client_print_pkt_ctx(ruft_pkt_ctx_t ctx, FILE *debg_ofp)
 int ruft_client_add_traff_info(ruft_pkt_ctx_t ctx, unsigned int index,
 			       FILE *debg_ofp)
 {
-    fprintf(stdout, "In %s with param %d Data Count: %d\n",
+    fprintf(debg_ofp, "In %s with param %d Data Count: %d\n",
 	    __FUNCTION__, index, traff_info[index].no_data_recvd);
     if (traff_info[index].no_data_recvd > 0) {
 	traff_info[index].no_data_recvd = traff_info[index].no_data_recvd + 1;
@@ -394,7 +394,7 @@ int ruft_client_recv_pkt(ruft_pkt_ctx_t *ctx, client_info_t client_info,
     int                status;
     
     bzero(&pkt, sizeof(pkt));
-    fprintf(stdout, "In %s", __FUNCTION__);
+    fprintf(debg_ofp, "In %s", __FUNCTION__);
     status = recvfrom(client_sock_fd, &(pkt), sizeof(pkt), 0,
 		      (struct sockaddr *)&server_addr,
 		      (socklen_t *)&server_addr_len);
@@ -472,13 +472,13 @@ int ruft_client_recv_pkt_with_timeout(client_info_t client_info,
 		ruft_client_set_data_recv_time(pos);
 		ruft_client_is_last_pkt_recvd(ctx);
 		recv_ctr++;
-		fprintf(stdout, "Pkt Recvd: %d\n", ctx.seq_no);
-		fprintf(stdout, "In inner while loop %s\n", __FUNCTION__);
+		fprintf(debg_ofp, "Pkt Recvd: %d\n", ctx.seq_no);
+		fprintf(debg_ofp, "In inner while loop %s\n", __FUNCTION__);
 	    }
 	}
-	fprintf(stdout, "In outer while loop %s recv_ctr: %d\n",
+	fprintf(debg_ofp, "In outer while loop %s recv_ctr: %d\n",
 		__FUNCTION__, recv_ctr);
-	fflush(stdout);
+	fflush(debg_ofp);
 	FD_ZERO(&sock_set);
 	FD_CLR(client_sock_fd, &sock_set);
     }
@@ -498,7 +498,7 @@ int ruft_client_send_ack(ruft_pkt_ctx_t req_ctx, client_info_t client_info,
     ack_ctx.awnd = MAX_PAYLOAD;
     ack_ctx.payload_length = 1;
     ack_ctx.payload[0]='\0';
-    fprintf(stdout, "Send Ack: %d\n", ack_ctx.ack_no);
+    fprintf(debg_ofp, "Send Ack: %d\n", ack_ctx.ack_no);
     status = ruft_client_send_pkt(ack_ctx, client_info, debg_ofp);
     return status;
 }
@@ -527,7 +527,7 @@ int is_all_data_recvd(int wnd, int offset)
 
     for (index = offset ; index < (offset+wnd); index++) {
 	if (traff_info[index].no_data_recvd == 0) {
-	    fprintf(stdout,"Chk ack Seg: %d\n", traff_info[index].seg_no);
+	    fprintf(debg_ofp,"Chk ack Seg: %d\n", traff_info[index].seg_no);
 	    return FALSE;
 	}
     }
@@ -537,8 +537,7 @@ int is_all_data_recvd(int wnd, int offset)
 int ruft_client_send_all_ack(client_info_t client_info, FILE *debg_ofp)
 {
     int i = 1, j = 1;
-    fprintf(stdout, "All acked packets\n");
-    fprintf(stdout, "Before start i: %d, j: %d, max_wd: %d\n", i, j, max_wd);
+    fprintf(debg_ofp, "Before start i: %d, j: %d, max_wd: %d\n", i, j, max_wd);
     if (is_all_data_recvd(max_wd, 1) == TRUE) {
 	fprintf(stdout, "File Recieved\n");
 	client_state = CL_FILE_RCVD;
@@ -550,9 +549,9 @@ int ruft_client_send_all_ack(client_info_t client_info, FILE *debg_ofp)
 	fprintf(debg_ofp, "Packet Seq No :%d\n",
 		traff_info[i].req_ctx.seq_no);
 	i++;
-	fprintf(stdout, "In first while loop %s\n", __FUNCTION__);
+	fprintf(debg_ofp, "In first while loop %s\n", __FUNCTION__);
     }
-    fprintf(stdout, "After first while start i: %d, j: %d, max_wd: %d\n",
+    fprintf(debg_ofp, "After first while start i: %d, j: %d, max_wd: %d\n",
 	    i, j, max_wd);
     if (i >= max_wd) {
 	if (last_pkt_recvd == TRUE) {
@@ -564,9 +563,9 @@ int ruft_client_send_all_ack(client_info_t client_info, FILE *debg_ofp)
 	while (i<max_wd && traff_info[i].no_data_recvd > 0)
 	{
 	    i++;
-	    fprintf(stdout, "In second while loop %s\n", __FUNCTION__);
+	    fprintf(debg_ofp, "In second while loop %s\n", __FUNCTION__);
 	}
-	ruft_client_print_pkt_ctx(traff_info[i-1].req_ctx, stdout);
+	ruft_client_print_pkt_ctx(traff_info[i-1].req_ctx, debg_ofp);
 	ruft_client_send_ack(traff_info[i-1].req_ctx,
 			     client_info,
 			     traff_info[i-1].req_ctx.is_last_pkt,
@@ -578,7 +577,7 @@ int ruft_client_send_all_ack(client_info_t client_info, FILE *debg_ofp)
 	    return 0;
 	}
     }
-    fprintf(stdout, "After Second While i: %d, j: %d, max_wd: %d\n",
+    fprintf(debg_ofp, "After Second While i: %d, j: %d, max_wd: %d\n",
 	    i, j, max_wd);
     if (traff_info[i].no_data_recvd == 0) {
 	if (i < (max_wd - 3)
@@ -591,12 +590,12 @@ int ruft_client_send_all_ack(client_info_t client_info, FILE *debg_ofp)
 				     client_info,
 				     traff_info[i-1].req_ctx.is_last_pkt,
 				     debg_ofp);
-		fprintf(stdout, "In for loop %s\n", __FUNCTION__);
+		fprintf(debg_ofp, "In for loop %s\n", __FUNCTION__);
 	    }
 		  
 	} 
     }
-    fprintf(stdout, "After for i: %d, j: %d, max_wd: %d\n", i, j, max_wd);
+    fprintf(debg_ofp, "After for i: %d, j: %d, max_wd: %d\n", i, j, max_wd);
     return 0;
 }
 int ruft_client_write_all_to_file(client_info_t client_info, FILE *debg_ofp)
@@ -605,7 +604,7 @@ int ruft_client_write_all_to_file(client_info_t client_info, FILE *debg_ofp)
     for (i = 0; i < max_wd; i++)
     {
 	ruft_client_write_to_file(traff_info[i].req_ctx, client_info, debg_ofp);
-	fprintf(stdout, "In for loop %s\n", __FUNCTION__);
+	fprintf(debg_ofp, "In for loop %s\n", __FUNCTION__);
     }
     return 0;
 }
@@ -618,7 +617,7 @@ int ruft_client_get_file_size(ruft_pkt_ctx_t ctx,
     
     sscanf(ctx.payload, "%s %s", method, size);
     client_info->file_size = atoi(size);
-    fprintf(stdout, "\nfile_size : %lu\n", client_info->file_size);
+    fprintf(debg_ofp, "\nfile_size : %lu\n", client_info->file_size);
     no_of_segments = client_info->file_size/MAX_PAYLOAD;
     if (client_info->file_size%MAX_PAYLOAD != 0) {
 	no_of_segments = no_of_segments +1;
@@ -635,13 +634,13 @@ int ruft_client_handle_reply(ruft_pkt_ctx_t req_ctx, client_info_t client_info,
     unsigned int   i;
     int            status = 0;
     ruft_client_recv_pkt(&file_size_ctx, client_info, debg_ofp);
-    ruft_client_print_pkt_ctx(file_size_ctx, stdout);
+    ruft_client_print_pkt_ctx(file_size_ctx, debg_ofp);
     ruft_client_get_file_size(file_size_ctx, &client_info, debg_ofp);
     while (client_state != CL_FILE_RCVD)
     {
 	status = ruft_client_recv_pkt_with_timeout(client_info, debg_ofp);
 	ruft_client_send_all_ack(client_info, debg_ofp);
-	fprintf(stdout, "In while loop %s\n", __FUNCTION__);
+	fprintf(debg_ofp, "In while loop %s\n", __FUNCTION__);
     }
     ruft_client_write_all_to_file(client_info, debg_ofp);
 
@@ -652,7 +651,7 @@ int main(int argc, char *argv[])
 
     int                status;
     client_info_t      client_info;
-    char               file_name[] = "udp_client_trace.log\0";
+    char               file_name[] = "ruft_client_trace.log\0";
     struct sockaddr_in server_addr;
     ruft_pkt_ctx_t     ctx;
 
@@ -683,7 +682,7 @@ int main(int argc, char *argv[])
 	ruft_client_set_ack_sent(0);
 	ruft_client_send_pkt(ctx, client_info, debg_ofp);
 	ruft_client_handle_reply(ctx, client_info, debg_ofp);
-	fprintf(stdout, "In while loop %s\n", __FUNCTION__);
+	fprintf(debg_ofp, "In while loop %s\n", __FUNCTION__);
     }
     fclose(debg_ofp);
     return 0;

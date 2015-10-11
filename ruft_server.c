@@ -242,7 +242,7 @@ int ruft_server_recv_pkt_with_timeout(ruft_server_rqst_info_t *req_info,
     int             start_select = TRUE;
 
     bzero(&pkt, sizeof(pkt));
-    fprintf(stdout, "Time out : %lu\n", timeout);
+    fprintf(debg_ofp, "Time out : %lu\n", timeout);
     recv_timeout.tv_sec = 0;
     recv_timeout.tv_usec = timeout;
     while((recv_ctr < (offset + wnd)) && start_select == TRUE) {
@@ -264,7 +264,7 @@ int ruft_server_recv_pkt_with_timeout(ruft_server_rqst_info_t *req_info,
 				     (struct sockaddr *)&(req_info->cli_addr),
 				     (socklen_t *)&(req_info->cli_len));
 		if (num_bytes == 0) {
-		    fprintf(stdout,
+		    fprintf(debg_ofp,
 			    "UDP client connection closed at client side\n");
 		    start_select = TRUE;
 		    /*Come out of inner while loop and poll select*/
@@ -273,13 +273,13 @@ int ruft_server_recv_pkt_with_timeout(ruft_server_rqst_info_t *req_info,
 		}
 	
 		if (num_bytes < 0) {
-		    fprintf(stdout, "ERROR: in UDP connection\n");
+		    fprintf(debg_ofp, "ERROR: in UDP connection\n");
 		    fflush(debg_ofp);
 		    return -1;
 		}
 		ruft_server_pkt_info_to_ctx(pkt, &ctx, debg_ofp);
 		ruft_server_print_pkt_ctx(ctx, debg_ofp);
-		fprintf(stdout, "Pkt Recvd: %d\n", ctx.ack_no);
+		fprintf(debg_ofp, "Pkt Recvd: %d\n", ctx.ack_no);
 		if (ctx.is_last_pkt == TRUE) {
 		    traff_info[ctx.ack_no/MAX_PAYLOAD + 1].no_ack_recvd =
 			traff_info[ctx.ack_no/MAX_PAYLOAD +1].no_ack_recvd + 1;
@@ -288,12 +288,12 @@ int ruft_server_recv_pkt_with_timeout(ruft_server_rqst_info_t *req_info,
 		    ruft_server_set_ack_recv(ctx);
 		}
 		recv_ctr++;
-		fprintf(stdout, "In inner while loop at %s\n", __FUNCTION__);
+		fprintf(debg_ofp, "In inner while loop at %s\n", __FUNCTION__);
 		start_select = TRUE;
 	    }
 
 	}
-	fprintf(stdout, "In outer while loop at %s\n", __FUNCTION__);
+	fprintf(debg_ofp, "In outer while loop at %s\n", __FUNCTION__);
 	FD_ZERO(&sock_set);
 	FD_CLR(udp_serv_sock_fd, &sock_set);
     }
@@ -502,7 +502,7 @@ int ruft_server_send_file_seg(ruft_pkt_ctx_t req_ctx,
     ruft_server_add_traff_info(reply_ctx, index, debg_ofp);
     ruft_server_set_sent_time(index);
     status = ruft_server_send_pkt(reply_ctx, rqst_info, debg_ofp);
-    fprintf(stdout, "Sent pkt: %d\n", reply_ctx.seq_no);
+    fprintf(debg_ofp, "Sent pkt: %d\n", reply_ctx.seq_no);
     return status;
 }
 
@@ -543,7 +543,7 @@ int is_all_ack_recvd(int wnd, int offset)
 
     for (index = offset ; index < (offset+wnd); index++) {
 	if (traff_info[index].no_ack_recvd == 0) {
-	    fprintf(stdout,"Chk ack Seg: %d\n", traff_info[index].seg_no);
+	    fprintf(debg_ofp,"Chk ack Seg: %d\n", traff_info[index].seg_no);
 	    return FALSE;
 	}
     }
@@ -556,7 +556,7 @@ int ruft_server_send_pending_data_segments(ruft_pkt_ctx_t req_ctx,
 {
     int send_ctr = offset;
     int is_last_pkt = FALSE;
-    fprintf(stdout, "In func %s \n", __FUNCTION__);
+    fprintf(debg_ofp, "In func %s \n", __FUNCTION__);
 
     while (send_ctr < (offset+wnd))
     {
@@ -573,7 +573,7 @@ int ruft_server_send_pending_data_segments(ruft_pkt_ctx_t req_ctx,
 				     send_ctr, debg_ofp);
 	}
 	send_ctr++;
-	fprintf(stdout, "In while loop at %s\n", __FUNCTION__);
+	fprintf(debg_ofp, "In while loop at %s\n", __FUNCTION__);
     }
 }
 int ruft_server_send_file_seg_win(ruft_pkt_ctx_t req_ctx,
@@ -588,12 +588,12 @@ int ruft_server_send_file_seg_win(ruft_pkt_ctx_t req_ctx,
     if (ctr == (max_wd - 1)) {
 	is_last_pkt = TRUE;
     }
-    fprintf(stdout, "wnd: %d offset: %d\n", wnd, offset);
+    fprintf(debg_ofp, "wnd: %d offset: %d\n", wnd, offset);
     while (ctr < (offset + wnd) && is_last_pkt == FALSE)
     {
 	ruft_server_send_file_seg(req_ctx, rqst_info,
 				  is_last_pkt, ctr, debg_ofp);
-	fprintf(stdout, "In first while loop at %s seg %d\n",
+	fprintf(debg_ofp, "In first while loop at %s seg %d\n",
 		__FUNCTION__, ctr);
 	ctr++;
 	if(ctr == (max_wd - 1)) {
@@ -619,7 +619,7 @@ int ruft_server_send_file_seg_win(ruft_pkt_ctx_t req_ctx,
 	    ruft_server_send_pending_data_segments(req_ctx, rqst_info,
 						   wnd, offset, debg_ofp);
 	}
-	fprintf(stdout, "In second while loop at %s\n", __FUNCTION__);
+	fprintf(debg_ofp, "In second while loop at %s\n", __FUNCTION__);
     }
     return 0;
 }
@@ -714,7 +714,7 @@ int ruft_server_send_file(ruft_pkt_ctx_t req_ctx,
 	    server_state = SV_FILE_SENT;
 	    fprintf(stdout, "File Sent\n");
 	}
-	fprintf(stdout, "In while loop at %s\n", __FUNCTION__);
+	fprintf(debg_ofp, "In while loop at %s\n", __FUNCTION__);
     }
 }
 
@@ -764,7 +764,7 @@ int ruft_server_handle_err(ruft_pkt_ctx_t req_ctx,
     if (ctx.is_ack == TRUE && ctx.is_last_pkt == TRUE
 	&& ctx.is_data_pkt == FALSE){
 	ruft_server_set_ack_recv_first_ele();
-	fprintf(stdout, "\nRTT: %lu Timeout: %lu\n",
+	fprintf(debg_ofp, "\nRTT: %lu Timeout: %lu\n",
 		traff_info[0].rtt, timeout);
     }
     return status;
@@ -784,7 +784,7 @@ int ruft_server_handle_pkt(ruft_pkt_info_t pkt,struct sockaddr_in cli_addr,
     rqst_info.cli_len  = cli_len;
     
     ruft_server_pkt_info_to_ctx(pkt, &ctx, debg_ofp);
-    fprintf(stdout, "Request Recieved\n");
+    fprintf(debg_ofp, "Request Recieved\n");
     ruft_server_print_pkt_ctx(ctx, debg_ofp);
     
     status = ruft_server_process_req(ctx, &rqst_info, debg_ofp);
@@ -866,7 +866,7 @@ int main(int argc, char *argv[])
 	    return 1;
 	}
 	ruft_server_handle_pkt(pkt, cli_addr, cli_len, debg_ofp);
-	fprintf(stdout, "In main while loop\n");
+	fprintf(debg_ofp, "In main while loop\n");
 	
     }
     cleanup(udp_serv_sock_fd, debg_ofp);
