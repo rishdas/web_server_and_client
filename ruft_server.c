@@ -679,11 +679,9 @@ int ruft_server_wnd_init()
 {
     cwnd = MAX_PAYLOAD;
     cwnd_seg = 1;
-    rwnd = MAX_PAYLOAD;
-    rwnd_seg = 1;
     ss_thresh = 4*MAX_PAYLOAD;
     ss_thresh_seg = 4;
-
+    no_dist_ack_recvd = 0;
 }
 int ruft_server_send_file(ruft_pkt_ctx_t req_ctx,
 			  ruft_server_rqst_info_t rqst_info, FILE *debg_ofp)
@@ -719,69 +717,6 @@ int ruft_server_send_file(ruft_pkt_ctx_t req_ctx,
 	fprintf(stdout, "In while loop at %s\n", __FUNCTION__);
     }
 }
-/* int ruft_server_send_file(ruft_pkt_ctx_t req_ctx, */
-/* 			  ruft_server_rqst_info_t rqst_info, FILE *debg_ofp) */
-/* { */
-/*     ruft_pkt_ctx_t ctx; */
-/*     ruft_pkt_ctx_t r_ctx; */
-/*     unsigned int   i = 0; */
-/*     int            is_last_pkt = FALSE; */
-/*     int            status=0; */
-    
-/*     server_state = SV_SLOW_START; */
-/*     ruft_server_create_traff_window(rqst_info, debg_ofp); */
-/*     ctx = req_ctx; */
-
-/*     if (i == max_wd-2) { */
-/* 	is_last_pkt = TRUE; */
-/*     } */
-    
-/*     while(server_state != SV_FILE_SENT) */
-/*     { */
-/* 	ruft_server_send_file_seg(ctx, rqst_info, is_last_pkt, i, debg_ofp); */
-/* 	r_ctx = ctx; */
-/* 	bzero(&ctx, sizeof(ctx)); */
-/* 	status = ruft_server_recv_pkt_with_timeout(&ctx, &rqst_info, debg_ofp); */
-/* 	if (status < 0) { */
-/* 	    return status; */
-/* 	} */
-
-/* 	while (status == 1) { */
-/* 	    fprintf(stdout, "Packet Retransmitted\n"); */
-/* 	    timeout = timeout + 500; */
-/* 	    ruft_server_send_file_seg(r_ctx, rqst_info, is_last_pkt, */
-/* 					       i, debg_ofp); */
-/* 	    status = ruft_server_recv_pkt_with_timeout(&ctx, */
-/* 						       &rqst_info, debg_ofp); */
-/* 	    if (status < 0){ */
-/* 		return status; */
-/* 	    } */
-	    
-/* 	} */
-/* 	if (ctx.is_ack == TRUE && ctx.is_data_pkt == FALSE */
-/* 	    && ctx.is_last_pkt == FALSE){ */
-/* 	    ruft_server_set_ack_recv(i); */
-/* 	    fprintf(stdout, "\nRTT: %lu Timeout: %lu\n", */
-/* 		    traff_info[i].rtt, timeout); */
-/* 	} */
-/* 	if (ctx.is_ack == TRUE && ctx.is_data_pkt == FALSE */
-/* 	    && ctx.is_last_pkt == TRUE){ */
-/* 	    ruft_server_set_ack_recv(i); */
-/* 	    fprintf(stdout, "\nRTT: %lu Timeout: %lu\n", */
-/* 		    traff_info[i].rtt, timeout); */
-/* 	    server_state = SV_FILE_SENT; */
-/* 	} */
-/* 	if (is_last_pkt == TRUE) { */
-/* 	    server_state = SV_FILE_SENT; */
-/* 	} */
-/* 	i++; */
-/* 	if (i >= max_wd-2) { */
-/* 	    is_last_pkt = TRUE; */
-/* 	} */
-	
-/*     } */
-/*     return 0; */
-/* } */
 
 int ruft_server_send_err_msg(ruft_pkt_ctx_t req_ctx,
 			     ruft_server_rqst_info_t rqst_info, FILE *debg_ofp)
@@ -889,14 +824,19 @@ int main(int argc, char *argv[])
     debg_ofp = fopen(file_name, "w");
     bzero(&pkt, sizeof(pkt));
 
-    if (argc < 2) {
-	fprintf(debg_ofp, "No port no entered hence exiting\n");
-	fprintf(stderr, "Very Few Arguments enter port no\n");
+    if (argc < 3) {
+ 	fprintf(debg_ofp, "No port no or rwnd entered hence exiting\n"\
+		"Syntax: ./ruft_server.bin <port-no>\t"\
+		"<rwnd in multiples of 1280>");
+	fprintf(stderr, "Very Few Arguments enter port no "\
+		"and rwnd\n");
 	fflush(debg_ofp);
 	cleanup(-1, debg_ofp);
 	exit(1);
     }
     port_no = atoi(argv[1]);
+    rwnd    = atoi(argv[2]);
+    rwnd_seg = rwnd/MAX_PAYLOAD;
     status = ruft_server_bootstrap(&udp_serv_sock_fd, port_no, debg_ofp);
     if (status != 0){
 	fprintf(debg_ofp, "ERROR in binding server port\n");

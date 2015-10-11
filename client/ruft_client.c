@@ -20,6 +20,7 @@ unsigned long int est_rtt = 0;
 unsigned long int dev_rtt = 0;
 unsigned long int timeout = 500;
 unsigned int rwnd_seg = 5;
+unsigned int rwnd = 5*MAX_PAYLOAD;
 unsigned int last_pkt_recvd = FALSE;
 
 typedef struct client_info_
@@ -30,6 +31,8 @@ typedef struct client_info_
     struct sockaddr_in         serv_sock_addr;
     ruft_client_network_mode_t network_mode;
     long int                   file_size;
+    unsigned int               rwnd;
+    unsigned int               rwnd_seg;
 } client_info_t;
     
 int cleanup(int serv_sock_fd, FILE *debg_ofp)
@@ -111,13 +114,14 @@ int parse_cmd_line_args(int argc, char *argv[],
 			client_info_t *client_info, FILE *debg_ofp)
 {
     int network_mode = 0;
-    if(argc< 5) {
+    if(argc < 6) {
 	fprintf(debg_ofp, "ERROR: Very few arguments "\
 		"the format for is \n"\
 		"client\t<server_host>\t<server_port>" \
 		"\t<filename.txt>\t"\
 		"<0|1|2 {0 - No Loss 1 - Variable loss"\
-		"2-High Latency}>\n");
+		"2-High Latency}>\t"\
+		"<rwnd:Multiple of 1280(MSS)>\n");
 	return -1;
 	
     }
@@ -126,16 +130,11 @@ int parse_cmd_line_args(int argc, char *argv[],
     client_info->port            = atoi(argv[2]);
     client_info->file_name       = argv[3];
     network_mode                 = atoi(argv[4]);
-    /* if (network_mode != 0 || network_mode != 1 */
-    /* 	|| network_mode !=2) { */
-    /* 	fprintf(debg_ofp, "ERROR: Wrong arguments "\ */
-    /* 		"the format for is \n"\ */
-    /* 		"client\t<server_host>\t<server_port>" \ */
-    /* 		"\t<filename.txt>\t"\ */
-    /* 		"<0|1|2 {0 - No Loss 1 - Variable loss"\ */
-    /* 		"2-High Latency}>\n"); */
-    /* 	return -1; */
-    /* } */
+    client_info->rwnd            = atoi(argv[5]);
+    client_info->rwnd_seg        = (client_info->rwnd)/MAX_PAYLOAD;
+    rwnd                         = client_info->rwnd;
+    rwnd_seg                     = client_info->rwnd_seg;
+    
     ruft_client_set_network_mode(client_info, network_mode);
     
     ruft_client_print_client_info(*client_info);
@@ -647,91 +646,7 @@ int ruft_client_handle_reply(ruft_pkt_ctx_t req_ctx, client_info_t client_info,
     ruft_client_write_all_to_file(client_info, debg_ofp);
 
 }
-/* int ruft_client_handle_reply(ruft_pkt_ctx_t req_ctx, client_info_t client_info, */
-/* 			     FILE *debg_ofp) */
-/* { */
-/*     ruft_pkt_ctx_t ctx; */
-/*     ruft_pkt_ctx_t r_ctx; */
-/*     unsigned int   i; */
-/*     int            status = 0; */
 
-/*     bzero(&ctx, sizeof(ctx)); */
-    
-/*     status = ruft_client_recv_pkt_with_timeout(&ctx, client_info, debg_ofp); */
-/*     while (status == 1) { */
-/* 	timeout = timeout + 500; */
-/* 	ruft_client_set_ack_sent(0); */
-/* 	ruft_client_send_pkt(req_ctx, client_info, debg_ofp); */
-/* 	status = ruft_client_recv_pkt_with_timeout(&ctx, client_info, debg_ofp); */
-/*     } */
-/*     if (ctx.is_last_pkt == TRUE && ctx.is_ack == TRUE */
-/* 	&& ctx.is_data_pkt == FALSE) { */
-/* 	ruft_client_set_data_recv_time(0); */
-/* 	fprintf(stdout, "RTT: %lu Timeout: %lu\n", */
-/* 		traff_info[0].rtt, timeout); */
-/* 	ruft_client_send_ack(ctx, client_info, TRUE, debg_ofp); */
-/* 	client_state = CL_FILE_RCVD; */
-/* 	return 0; */
-/*     } */
-/*     i = 1; */
-/*     client_state = CL_SLOW_START; */
-/*     while(client_state != CL_FILE_RCVD) */
-/*     { */
-
-/* 	ruft_client_write_to_file(ctx, client_info, debg_ofp); */
-/* 	ruft_client_set_data_recv_time(i-1); */
-/* 	fprintf(stdout, "RTT: %lu Timeout: %lu\n", */
-/* 		traff_info[i-1].rtt, timeout); */
-/* 	ruft_client_create_traff_window(client_info, debg_ofp); */
-/* 	ruft_client_add_traff_info(ctx, i, debg_ofp); */
-/* 	if (ctx.is_last_pkt != TRUE) { */
-/* 	    ruft_client_send_ack(ctx, client_info, FALSE, debg_ofp); */
-/* 	} else { */
-/* 	    ruft_client_send_ack(ctx, client_info, TRUE, debg_ofp); */
-/* 	    client_state = CL_FILE_RCVD; */
-/* 	    ruft_client_set_ack_sent(i); */
-/* 	    return 0; */
-/* 	} */
-/* 	ruft_client_set_ack_sent(i); */
-/* 	r_ctx = ctx; */
-/* 	bzero(&ctx, sizeof(ctx)); */
-/* 	status = */
-/* 	    ruft_client_recv_pkt_with_timeout(&ctx, client_info, debg_ofp); */
-/* 	if(status < 0) { */
-/* 	    return status; */
-/* 	} */
-/* 	while(status == 1) { */
-/* 	    fprintf (stdout, "Packet Retransmitted\n"); */
-/* 	    timeout = timeout + 500; */
-/* 	    if (r_ctx.is_last_pkt != TRUE) { */
-/* 		ruft_client_send_ack(r_ctx, client_info, FALSE, debg_ofp); */
-/* 	    } else { */
-/* 		ruft_client_send_ack(r_ctx, client_info, TRUE, debg_ofp); */
-/* 		client_state = CL_FILE_RCVD; */
-/* 		ruft_client_set_ack_sent(i); */
-/* 		return 0; */
-/* 	    } */
-/* 	    ruft_client_set_ack_sent(i); */
-/* 	    status = */
-/* 		ruft_client_recv_pkt_with_timeout(&ctx, client_info, debg_ofp); */
-/* 	    if (status < 0) { */
-/* 		return status; */
-/* 	    } */
-/* 	} */
-/* 	if (ctx.is_last_pkt == TRUE && ctx.is_ack == TRUE) { */
-/* 	    ruft_client_write_to_file(ctx, client_info, debg_ofp); */
-/* 	    ruft_client_set_data_recv_time(i); */
-/* 	    fprintf(stdout, "RTT: %lu Timeout: %lu\n", */
-/* 		    traff_info[0].rtt, timeout); */
-/* 	    ruft_client_send_ack(ctx, client_info, TRUE, debg_ofp); */
-/* 	    client_state = CL_FILE_RCVD; */
-/* 	    return 0; */
-/* 	} */
-/* 	i++; */
-
-/*     } */
-/*     return 0; */
-/* } */
 int main(int argc, char *argv[])
 {
 
