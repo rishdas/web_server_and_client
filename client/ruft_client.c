@@ -22,6 +22,8 @@ unsigned long int timeout = 500;
 unsigned int rwnd_seg = 5;
 unsigned int rwnd = 5*MAX_PAYLOAD;
 unsigned int last_pkt_recvd = FALSE;
+struct timeval req_st_time;
+struct timeval req_et_time;
 #define DELAY 1000
 
 typedef struct client_info_
@@ -447,7 +449,7 @@ int ruft_client_recv_pkt_with_timeout(client_info_t client_info,
     recv_timeout.tv_sec = 0;
     recv_timeout.tv_usec = timeout;
     if (client_info.network_mode == CL_VARIABLE_LOSS) {
-	rd_index = ruft_client_get_rand_drop_index(recv_ctr, stdout);
+	rd_index = ruft_client_get_rand_drop_index(recv_ctr, debg_ofp);
     }
     while (recv_ctr < rwnd_seg && (start_select == TRUE))
     {
@@ -484,14 +486,13 @@ int ruft_client_recv_pkt_with_timeout(client_info_t client_info,
 		ruft_client_print_pkt_ctx(ctx, debg_ofp);
 		if (client_info.network_mode == CL_VARIABLE_LOSS
 		    && recv_ctr == rd_index && first_time == TRUE) {
-		    fprintf(stdout, "Dropping Pkt: %d\n", ctx.seq_no);
+		    fprintf(debg_ofp, "Dropping Pkt: %d\n", ctx.seq_no);
 		    first_time = FALSE;
 		    continue;
 		}
 		if (client_info.network_mode == CL_HIGH_LATENCY
 		    && first_time == TRUE) {
-		    fprintf(stdout, "Sleep for %d micseconds\n", DELAY);
-		    first_time = FALSE;
+		    fprintf(debg_ofp, "Sleep for %d micseconds\n", DELAY);
 		    usleep(DELAY);
 		}
 		pos = ruft_client_get_pos(ctx);
@@ -624,10 +625,26 @@ int ruft_client_send_all_ack(client_info_t client_info, FILE *debg_ofp)
     fprintf(debg_ofp, "After for i: %d, j: %d, max_wd: %d\n", i, j, max_wd);
     return 0;
 }
+int ruft_client_print_time_taken()
+{
+    unsigned long time_taken;
+    time_taken = (req_et_time.tv_sec - req_st_time.tv_sec)
+	+(req_et_time.tv_usec - req_st_time.tv_usec)/1000000;
+    if (time_taken == 0) {
+	time_taken = (req_et_time.tv_sec - req_st_time.tv_sec)*1000000
+	    +(req_et_time.tv_usec - req_st_time.tv_usec);
+	fprintf(stdout, "Time taken in micro secs: %d\n", time_taken);
+	return 0;
+    }
+    fprintf(stdout, "Time taken in secs: %d\n", time_taken);
+    return 0;
+}
 int ruft_client_write_all_to_file(client_info_t client_info, FILE *debg_ofp)
 {
     int i = 0;
     fprintf(stdout, "File Recieved\n");
+    gettimeofday(&req_et_time, NULL);
+    ruft_client_print_time_taken();
     for (i = 0; i < max_wd; i++)
     {
 	ruft_client_write_to_file(traff_info[i].req_ctx, client_info, debg_ofp);
@@ -708,6 +725,7 @@ int main(int argc, char *argv[])
 	ruft_client_add_traff_info(ctx, 0, debg_ofp);
 	ruft_client_set_ack_sent(0);
 	ruft_client_send_pkt(ctx, client_info, debg_ofp);
+	gettimeofday(&req_st_time, NULL);
 	ruft_client_handle_reply(ctx, client_info, debg_ofp);
 	fprintf(debg_ofp, "In while loop %s\n", __FUNCTION__);
     }
