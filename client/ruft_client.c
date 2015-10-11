@@ -22,6 +22,7 @@ unsigned long int timeout = 500;
 unsigned int rwnd_seg = 5;
 unsigned int rwnd = 5*MAX_PAYLOAD;
 unsigned int last_pkt_recvd = FALSE;
+#define DELAY 1000
 
 typedef struct client_info_
 {
@@ -418,6 +419,14 @@ int ruft_client_is_last_pkt_recvd(ruft_pkt_ctx_t ctx)
 	last_pkt_recvd  = TRUE;
     }
 }
+unsigned int ruft_client_get_rand_drop_index(unsigned int recv_ctr,
+					     FILE *debg_ofp)
+{
+    unsigned int rd_index = recv_ctr;
+    rd_index = recv_ctr + rand()%(rwnd_seg - recv_ctr);
+    fprintf(debg_ofp, "Random drop Index: %u\n", rd_index);
+    return rd_index;
+}
 int ruft_client_recv_pkt_with_timeout(client_info_t client_info,
 				      FILE *debg_ofp)
 {
@@ -432,9 +441,14 @@ int ruft_client_recv_pkt_with_timeout(client_info_t client_info,
     int                start_select = TRUE;
     int                status = 0;
     int                pos = 0;
+    int                rd_index = recv_ctr;
+    int                first_time = TRUE;
     
     recv_timeout.tv_sec = 0;
     recv_timeout.tv_usec = timeout;
+    if (client_info.network_mode == CL_VARIABLE_LOSS) {
+	rd_index = ruft_client_get_rand_drop_index(recv_ctr, stdout);
+    }
     while (recv_ctr < rwnd_seg && (start_select == TRUE))
     {
 	FD_SET(client_sock_fd, &sock_set);
@@ -465,8 +479,21 @@ int ruft_client_recv_pkt_with_timeout(client_info_t client_info,
 		    close(client_sock_fd);
 		    return -1;
 		}
+		
 		ruft_client_pkt_info_to_ctx(pkt, &ctx, debg_ofp);
 		ruft_client_print_pkt_ctx(ctx, debg_ofp);
+		if (client_info.network_mode == CL_VARIABLE_LOSS
+		    && recv_ctr == rd_index && first_time == TRUE) {
+		    fprintf(stdout, "Dropping Pkt: %d\n", ctx.seq_no);
+		    first_time = FALSE;
+		    continue;
+		}
+		if (client_info.network_mode == CL_HIGH_LATENCY
+		    && first_time == TRUE) {
+		    fprintf(stdout, "Sleep for %d micseconds\n", DELAY);
+		    first_time = FALSE;
+		    usleep(DELAY);
+		}
 		pos = ruft_client_get_pos(ctx);
 		ruft_client_add_traff_info(ctx, pos, debg_ofp);
 		ruft_client_set_data_recv_time(pos);
@@ -539,7 +566,6 @@ int ruft_client_send_all_ack(client_info_t client_info, FILE *debg_ofp)
     int i = 1, j = 1;
     fprintf(debg_ofp, "Before start i: %d, j: %d, max_wd: %d\n", i, j, max_wd);
     if (is_all_data_recvd(max_wd, 1) == TRUE) {
-	fprintf(stdout, "File Recieved\n");
 	client_state = CL_FILE_RCVD;
     }
     while (i<max_wd &&
@@ -601,6 +627,7 @@ int ruft_client_send_all_ack(client_info_t client_info, FILE *debg_ofp)
 int ruft_client_write_all_to_file(client_info_t client_info, FILE *debg_ofp)
 {
     int i = 0;
+    fprintf(stdout, "File Recieved\n");
     for (i = 0; i < max_wd; i++)
     {
 	ruft_client_write_to_file(traff_info[i].req_ctx, client_info, debg_ofp);
