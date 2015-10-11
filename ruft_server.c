@@ -19,6 +19,8 @@ unsigned int cwnd = MAX_PAYLOAD;
 unsigned int cwnd_seg = 1;
 unsigned int rwnd = MAX_PAYLOAD;
 unsigned int rwnd_seg = 1;
+unsigned int ss_thresh = 4*MAX_PAYLOAD;
+unsigned int ss_thresh_seg = 4;
 unsigned long int est_rtt = 0;
 unsigned long int dev_rtt = 0;
 unsigned long int timeout = 500;
@@ -621,10 +623,54 @@ int ruft_server_send_file_seg_win(ruft_pkt_ctx_t req_ctx,
     }
     return 0;
 }
-int ruft_server_get_wnd ()
+int ruft_server_print_server_state(FILE *debg_ofp)
 {
-    cwnd = cwnd + MAX_PAYLOAD*no_dist_ack_recvd;
-    cwnd_seg = cwnd/MAX_PAYLOAD;
+    switch(server_state)
+    {
+    case SV_SLOW_START:
+	fprintf(debg_ofp, "Server State: SLOW START\n");
+	break;
+    case SV_CONG_AVOID:
+	fprintf(debg_ofp, "Server State: CONGESTION AVOIDANCE\n");
+	break;
+    case SV_REPLY_ERR:
+	fprintf(debg_ofp, "Server State: ERROR REPLY\n");
+	break;
+    case SV_FILE_SENT:
+	fprintf(debg_ofp, "Server State: FILE SENT\n");
+	break;
+    case SV_FAST_RECOV:
+	fprintf(debg_ofp, "Server State: FAST RECOVERY\n");
+	break;
+    case SV_WAIT:
+	fprintf(debg_ofp, "Server State: SERVER WAIT\n");
+	break;
+    case SV_PROC_REQ:
+	fprintf(debg_ofp, "Server State: PROCESS REQUEST\n");
+	break;
+    default:
+	fprintf(debg_ofp, "Server State: SERVER WAIT\n");
+	break;
+    }
+    return 0;
+}
+int ruft_server_get_wnd (FILE *debg_ofp)
+{
+    ruft_server_print_server_state(stderr);
+    switch(server_state)
+    {
+    case SV_SLOW_START:
+	cwnd = cwnd + MAX_PAYLOAD*no_dist_ack_recvd;
+	cwnd_seg = cwnd/MAX_PAYLOAD;
+	break;
+    case SV_CONG_AVOID:
+	cwnd = cwnd + (MAX_PAYLOAD*(MAX_PAYLOAD/cwnd))*no_dist_ack_recvd;
+	cwnd_seg = cwnd/MAX_PAYLOAD;
+	break;
+    }
+    if (cwnd > ss_thresh && server_state == SV_SLOW_START) {
+	server_state = SV_CONG_AVOID;
+    }
     fprintf(stderr, "cwnd_seg: %d Dist_ack_recvd: %d \n",
 	    cwnd_seg, no_dist_ack_recvd);
     return cwnd_seg;
@@ -635,6 +681,9 @@ int ruft_server_wnd_init()
     cwnd_seg = 1;
     rwnd = MAX_PAYLOAD;
     rwnd_seg = 1;
+    ss_thresh = 4*MAX_PAYLOAD;
+    ss_thresh_seg = 4;
+
 }
 int ruft_server_send_file(ruft_pkt_ctx_t req_ctx,
 			  ruft_server_rqst_info_t rqst_info, FILE *debg_ofp)
@@ -644,7 +693,7 @@ int ruft_server_send_file(ruft_pkt_ctx_t req_ctx,
     int temp_wnd = 5;
     server_state = SV_SLOW_START;
     ruft_server_wnd_init();
-    wnd = ruft_server_get_wnd();
+    wnd = ruft_server_get_wnd(debg_ofp);
     ruft_server_create_traff_window(rqst_info, debg_ofp);
     ruft_server_send_file_size(req_ctx, rqst_info, 0, debg_ofp);
     while (server_state != SV_FILE_SENT && wnd_ctr < max_wd)
@@ -656,7 +705,7 @@ int ruft_server_send_file(ruft_pkt_ctx_t req_ctx,
 	ruft_server_send_file_seg_win(req_ctx, rqst_info,
 				      wnd, wnd_ctr, debg_ofp);
 	wnd_ctr = wnd_ctr + wnd;
-	wnd = ruft_server_get_wnd(wnd);
+	wnd = ruft_server_get_wnd(debg_ofp);
 	if (wnd > max_wd) {
 	    wnd = max_wd;
 	}
