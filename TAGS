@@ -69,7 +69,7 @@ typedef enum ruft_client_network_mode_ 76,1577
     CL_HIGH_LATENCY79,1656
 }ruft_client_network_mode_t;ruft_client_network_mode_t80,1676
 
-client/ruft_client.c,1893
+client/ruft_client.c,2089
 FILE *debg_ofp;debg_ofp13,220
 FILE     *ifp;ifp14,236
 int  client_sock_fd;15,251
@@ -80,44 +80,49 @@ unsigned long int est_rtt 19,366
 unsigned long int dev_rtt 20,397
 unsigned long int timeout 21,428
 unsigned int rwnd_seg 22,461
-unsigned int last_pkt_recvd 23,488
-typedef struct client_info_25,526
-    int                        port;27,556
-    char                       *file_name;file_name28,593
-    struct hostent             *server_addr;server_addr29,636
-    struct sockaddr_in         serv_sock_addr;30,681
-    ruft_client_network_mode_t network_mode;31,728
-    long int                   file_size;32,773
-} client_info_t;33,815
-int cleanup(35,837
-int ruft_client_create_traff_window(45,1011
-int ruft_client_set_network_mode(69,1484
-int ruft_client_print_client_info(87,1866
-int parse_cmd_line_args(110,2597
-int ruft_client_set_ett_timeout(145,3740
-int ruft_client_set_ack_sent_time(158,4110
-int ruft_client_get_last_ack(163,4239
-int ruft_client_set_data_recv_time(178,4458
-int ruft_client_set_ack_sent(194,4983
-int ruft_client_bootstrap(204,5217
-int ruft_client_pkt_info_to_ctx(224,5866
-int ruft_client_pkt_ctx_to_info(258,6658
-int ruft_client_print_pkt_ctx(293,7427
-int ruft_client_add_traff_info(325,8368
-int ruft_client_build_get_rqst(352,9355
-int ruft_client_send_pkt(367,9869
-int ruft_client_recv_pkt(389,10506
-int ruft_client_get_pos(412,11251
-int ruft_client_is_last_pkt_recvd(416,11340
-int ruft_client_recv_pkt_with_timeout(422,11464
-int ruft_client_send_ack(488,13526
-int ruft_client_write_to_file(506,14129
-int is_all_data_recvd(525,14592
-int ruft_client_send_all_ack(538,14890
-int ruft_client_write_all_to_file(603,16809
-int ruft_client_get_file_size(613,17090
-int ruft_client_handle_reply(631,17713
-int main(735,21438
+unsigned int rwnd 23,488
+unsigned int last_pkt_recvd 24,523
+#define DELAY 25,560
+typedef struct client_info_27,580
+    int                        port;29,610
+    char                       *file_name;file_name30,647
+    struct hostent             *server_addr;server_addr31,690
+    struct sockaddr_in         serv_sock_addr;32,735
+    ruft_client_network_mode_t network_mode;33,782
+    long int                   file_size;34,827
+    unsigned int               rwnd;35,869
+    unsigned int               rwnd_seg;36,906
+} client_info_t;37,947
+int cleanup(39,969
+int ruft_client_create_traff_window(49,1143
+int ruft_client_set_network_mode(73,1616
+int ruft_client_print_client_info(91,1998
+int parse_cmd_line_args(114,2729
+int ruft_client_set_ett_timeout(145,3756
+int ruft_client_set_ack_sent_time(158,4126
+int ruft_client_get_last_ack(163,4255
+int ruft_client_set_data_recv_time(178,4474
+int ruft_client_set_ack_sent(194,4999
+int ruft_client_bootstrap(204,5233
+int ruft_client_pkt_info_to_ctx(224,5882
+int ruft_client_pkt_ctx_to_info(258,6674
+int ruft_client_print_pkt_ctx(293,7443
+int ruft_client_add_traff_info(325,8384
+int ruft_client_build_get_rqst(352,9373
+int ruft_client_send_pkt(367,9887
+int ruft_client_recv_pkt(389,10524
+int ruft_client_get_pos(412,11271
+int ruft_client_is_last_pkt_recvd(416,11360
+unsigned int ruft_client_get_rand_drop_index(422,11484
+int ruft_client_recv_pkt_with_timeout(430,11757
+int ruft_client_send_ack(514,14441
+int ruft_client_write_to_file(532,15046
+int is_all_data_recvd(551,15509
+int ruft_client_send_all_ack(564,15809
+int ruft_client_write_all_to_file(627,17663
+int ruft_client_get_file_size(638,17986
+int ruft_client_handle_reply(656,18611
+int main(676,19308
 
 ruft.h,2224
 #define MAX_PAYLOAD 2,1
@@ -189,7 +194,7 @@ typedef enum ruft_client_network_mode_ 76,1577
     CL_HIGH_LATENCY79,1656
 }ruft_client_network_mode_t;ruft_client_network_mode_t80,1676
 
-ruft_server.c,1821
+ruft_server.c,1970
 FILE *debg_ofp;debg_ofp13,223
 int udp_serv_sock_fd;14,239
 ruft_server_states_t server_state;15,261
@@ -199,43 +204,47 @@ unsigned int cwnd 18,355
 unsigned int cwnd_seg 19,388
 unsigned int rwnd 20,415
 unsigned int rwnd_seg 21,448
-unsigned long int est_rtt 22,475
-unsigned long int dev_rtt 23,506
-unsigned long int timeout 24,537
-unsigned int no_dist_ack_recvd 25,570
-typedef struct ruft_server_rqst_info_31,650
-    struct sockaddr_in cli_addr;33,690
-    size_t cli_len;34,723
-    char file_name[file_name35,743
-} ruft_server_rqst_info_t;36,772
-int cleanup(37,799
-void int_handler(48,974
-void ignore_sigpipe(53,1058
-int ruft_server_bootstrap(66,1335
-int ruft_server_pkt_info_to_ctx(89,2042
-int ruft_server_pkt_ctx_to_info(122,2819
-int ruft_server_print_pkt_ctx(156,3582
-int ruft_server_send_pkt(179,4382
-int ruft_server_recv_pkt(203,5011
-int ruft_server_recv_pkt_with_timeout(230,5698
-int ruft_server_process_req(295,7615
-int ruft_server_add_traff_info(319,8384
-int ruft_server_set_ett_timeout(337,8997
-int ruft_server_set_sent_time(350,9368
-int ruft_server_set_ack_recv_time(358,9569
-int ruft_server_set_ack_recv(370,10000
-int ruft_server_set_ack_recv_first_ele(398,10745
-long int ruft_server_get_file_size(407,10957
-int ruft_server_set_max_wd(415,11152
-int ruft_server_create_traff_window(437,11758
-int ruft_server_send_file_seg(456,12211
-int ruft_server_send_file_size(501,13696
-int is_all_ack_recvd(532,14744
-int ruft_server_send_pending_data_segments(545,15038
-int ruft_server_send_file_seg_win(570,15734
-int ruft_server_get_wnd 617,16972
-int ruft_server_send_file(625,17175
-int ruft_server_send_err_msg(715,19958
-int ruft_server_handle_err(740,20855
-int ruft_server_handle_pkt(766,21659
-int main(805,22636
+unsigned int ss_thresh 22,475
+unsigned int ss_thresh_seg 23,515
+unsigned long int est_rtt 24,547
+unsigned long int dev_rtt 25,578
+unsigned long int timeout 26,609
+unsigned int no_dist_ack_recvd 27,642
+typedef struct ruft_server_rqst_info_33,722
+    struct sockaddr_in cli_addr;35,762
+    size_t cli_len;36,795
+    char file_name[file_name37,815
+} ruft_server_rqst_info_t;38,844
+int cleanup(39,871
+void int_handler(50,1046
+void ignore_sigpipe(55,1130
+int ruft_server_bootstrap(68,1407
+int ruft_server_pkt_info_to_ctx(91,2114
+int ruft_server_pkt_ctx_to_info(124,2891
+int ruft_server_print_pkt_ctx(158,3654
+int ruft_server_send_pkt(181,4454
+int ruft_server_recv_pkt(205,5083
+int ruft_server_recv_pkt_with_timeout(232,5770
+int ruft_server_process_req(303,7907
+int ruft_server_add_traff_info(327,8676
+int ruft_server_set_ett_timeout(345,9289
+int ruft_server_set_sent_time(358,9660
+int ruft_server_set_ack_recv_time(366,9861
+int ruft_server_set_ack_recv(378,10292
+int ruft_server_set_ack_recv_first_ele(406,11039
+long int ruft_server_get_file_size(415,11251
+int ruft_server_set_max_wd(423,11446
+int ruft_server_create_traff_window(445,12052
+int ruft_server_send_file_seg(464,12505
+int ruft_server_send_file_size(509,13992
+int is_all_ack_recvd(540,15040
+int ruft_server_send_pending_data_segments(553,15338
+int ruft_server_send_file_seg_win(579,16090
+int ruft_server_print_server_state(626,17391
+int ruft_server_get_wnd 657,18152
+int ruft_server_wnd_init(678,18727
+int ruft_server_send_file(686,18881
+int ruft_server_send_err_msg(721,19916
+int ruft_server_handle_err(746,20813
+int ruft_server_handle_pkt(772,21619
+int main(811,22598
