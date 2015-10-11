@@ -541,7 +541,7 @@ int is_all_ack_recvd(int wnd, int offset)
 
     for (index = offset ; index < (offset+wnd); index++) {
 	if (traff_info[index].no_ack_recvd == 0) {
-	    fprintf(stdout,"Chk ack Seg: %d", traff_info[index].seg_no);
+	    fprintf(stdout,"Chk ack Seg: %d\n", traff_info[index].seg_no);
 	    return FALSE;
 	}
     }
@@ -554,6 +554,7 @@ int ruft_server_send_pending_data_segments(ruft_pkt_ctx_t req_ctx,
 {
     int send_ctr = offset;
     int is_last_pkt = FALSE;
+    fprintf(stdout, "In func %s \n", __FUNCTION__);
 
     while (send_ctr < (offset+wnd))
     {
@@ -585,7 +586,7 @@ int ruft_server_send_file_seg_win(ruft_pkt_ctx_t req_ctx,
     if (ctr == (max_wd - 1)) {
 	is_last_pkt = TRUE;
     }
-
+    fprintf(stdout, "wnd: %d offset: %d\n", wnd, offset);
     while (ctr < (offset + wnd) && is_last_pkt == FALSE)
     {
 	ruft_server_send_file_seg(req_ctx, rqst_info,
@@ -623,17 +624,26 @@ int ruft_server_send_file_seg_win(ruft_pkt_ctx_t req_ctx,
 int ruft_server_get_wnd ()
 {
     cwnd = cwnd + MAX_PAYLOAD*no_dist_ack_recvd;
-    cwnd_seg = cwnd_seg + MAX_PAYLOAD*no_dist_ack_recvd;
-    no_dist_ack_recvd = 0;
-    cwnd_seg = 5;
+    cwnd_seg = cwnd/MAX_PAYLOAD;
+    fprintf(stderr, "cwnd_seg: %d Dist_ack_recvd: %d \n",
+	    cwnd_seg, no_dist_ack_recvd);
     return cwnd_seg;
+}
+int ruft_server_wnd_init()
+{
+    cwnd = MAX_PAYLOAD;
+    cwnd_seg = 1;
+    rwnd = MAX_PAYLOAD;
+    rwnd_seg = 1;
 }
 int ruft_server_send_file(ruft_pkt_ctx_t req_ctx,
 			  ruft_server_rqst_info_t rqst_info, FILE *debg_ofp)
 {
     int wnd_ctr = 1;
     int wnd = 1;
+    int temp_wnd = 5;
     server_state = SV_SLOW_START;
+    ruft_server_wnd_init();
     wnd = ruft_server_get_wnd();
     ruft_server_create_traff_window(rqst_info, debg_ofp);
     ruft_server_send_file_size(req_ctx, rqst_info, 0, debg_ofp);
@@ -642,11 +652,17 @@ int ruft_server_send_file(ruft_pkt_ctx_t req_ctx,
 	if ((max_wd - wnd_ctr) <= (wnd - wnd_ctr)) {
 	    wnd = max_wd - wnd_ctr;
 	}
-
+	fprintf(stderr, "wnd: %d offset: %d\n", wnd, wnd_ctr);
 	ruft_server_send_file_seg_win(req_ctx, rqst_info,
 				      wnd, wnd_ctr, debg_ofp);
-	wnd = ruft_server_get_wnd(wnd);
 	wnd_ctr = wnd_ctr + wnd;
+	wnd = ruft_server_get_wnd(wnd);
+	if (wnd > max_wd) {
+	    wnd = max_wd;
+	}
+	if ((wnd + wnd_ctr)>max_wd) {
+	    wnd = max_wd-wnd_ctr;
+	}
 	if (is_all_ack_recvd(max_wd, 0) == TRUE) {
 	    server_state = SV_FILE_SENT;
 	    fprintf(stdout, "File Sent\n");
