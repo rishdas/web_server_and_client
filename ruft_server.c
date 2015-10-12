@@ -10,6 +10,15 @@
 #include<signal.h>
 #include "ruft.h"
 
+typedef struct ruft_server_stats_
+{
+    unsigned int t_rx;
+    unsigned int t_tx;
+    unsigned int ss_rx;
+    unsigned int ss_tx;
+    unsigned int ca_rx;
+    unsigned int ca_tx;
+} ruft_server_stats_t;
 FILE *debg_ofp;
 int udp_serv_sock_fd;
 ruft_server_states_t server_state;
@@ -25,11 +34,13 @@ unsigned long int est_rtt = 0;
 unsigned long int dev_rtt = 0;
 unsigned long int timeout = 500;
 unsigned int no_dist_ack_recvd = 0;
-
+ruft_server_stats_t serv_stats;
+#define THRESHOLD 1000
 
 /*
  * Free the return value after use
  */
+
 typedef struct ruft_server_rqst_info_
 {
     struct sockaddr_in cli_addr;
@@ -46,7 +57,62 @@ int cleanup(int serv_sock_fd, FILE *debg_ofp)
     }
     return 0;
 }
-
+int ruft_server_add_rx_stat()
+{
+    switch(server_state)
+    {
+    case SV_SLOW_START:
+	serv_stats.t_rx++;
+	serv_stats.ss_rx++;
+	break;
+    case SV_CONG_AVOID:
+	serv_stats.t_rx++;
+	serv_stats.ca_rx++;
+	break;
+    default:
+	serv_stats.t_rx++;
+    }
+    return 0;
+}
+int ruft_server_add_tx_stat()
+{
+    switch(server_state)
+    {
+    case SV_SLOW_START:
+	serv_stats.t_tx++;
+	serv_stats.ss_tx++;
+	break;
+    case SV_CONG_AVOID:
+	serv_stats.t_tx++;
+	serv_stats.ca_tx++;
+	break;
+    default:
+	serv_stats.t_tx++;
+    }
+    return 0;
+}
+int ruft_server_print_stat(FILE *debg_ofp)
+{
+    fprintf(debg_ofp, "Total Packets Stats:\n");
+    fprintf(debg_ofp, "TX: %u\t", serv_stats.t_tx);
+    fprintf(debg_ofp, "RX: %u\n", serv_stats.t_rx);
+    fprintf(debg_ofp, "Slow Start Packets Stats:\n");
+    fprintf(debg_ofp, "TX: %u\t", serv_stats.ss_tx);
+    fprintf(debg_ofp, "RX: %u\t", serv_stats.ss_rx);
+    fprintf(debg_ofp, "TX%: %u\t",
+	    (serv_stats.ss_tx*100)/serv_stats.t_tx);
+    fprintf(debg_ofp, "RX%: %u\n",
+	    (serv_stats.ss_rx*100)/serv_stats.t_rx);
+    fprintf(debg_ofp, "Congestion Avoidance Packets Stats:\n");
+    fprintf(debg_ofp, "TX: %u\t", serv_stats.ca_tx);
+    fprintf(debg_ofp, "RX: %u\t", serv_stats.ca_rx);
+    fprintf(debg_ofp, "TX%: %u\t",
+	    (serv_stats.ca_tx*100)/serv_stats.t_tx);
+    fprintf(debg_ofp, "RX%: %u\n",
+	    (serv_stats.ca_rx*100)/serv_stats.t_rx);
+    return 0;
+   
+}
 void int_handler(int sig)
 {
     cleanup(udp_serv_sock_fd, debg_ofp);
@@ -251,8 +317,8 @@ int ruft_server_recv_pkt_with_timeout(ruft_server_rqst_info_t *req_info,
 	status = select(udp_serv_sock_fd+1, &sock_set,
 			NULL, NULL, &recv_timeout);
 	if (status == 0){
-	    fprintf(stderr, "ERROR time out reached\n");
-	    fflush(stderr);
+	    fprintf(debg_ofp, "ERROR time out reached\n");
+	    fflush(debg_ofp);
 	    return 1;
 	}
 
@@ -280,6 +346,7 @@ int ruft_server_recv_pkt_with_timeout(ruft_server_rqst_info_t *req_info,
 		ruft_server_pkt_info_to_ctx(pkt, &ctx, debg_ofp);
 		ruft_server_print_pkt_ctx(ctx, debg_ofp);
 		fprintf(debg_ofp, "Pkt Recvd: %d\n", ctx.ack_no);
+		ruft_server_add_rx_stat();
 		if (ctx.is_last_pkt == TRUE) {
 		    traff_info[ctx.ack_no/MAX_PAYLOAD + 1].no_ack_recvd =
 			traff_info[ctx.ack_no/MAX_PAYLOAD +1].no_ack_recvd + 1;
@@ -503,6 +570,7 @@ int ruft_server_send_file_seg(ruft_pkt_ctx_t req_ctx,
     ruft_server_set_sent_time(index);
     status = ruft_server_send_pkt(reply_ctx, rqst_info, debg_ofp);
     fprintf(debg_ofp, "Sent pkt: %d\n", reply_ctx.seq_no);
+    ruft_server_add_tx_stat();
     return status;
 }
 
@@ -550,12 +618,38 @@ int is_all_ack_recvd(int wnd, int offset)
     
     return TRUE;    
 }
+int ruft_server_reconfigure_wnd()
+{
+
+    switch(server_state)
+    {
+    case SV_SLOW_START:
+	ss_thresh = cwnd/2;
+	if (ss_thresh == 0) {
+	    ss_thresh = MAX_PAYLOAD;
+	}
+	cwnd = MAX_PAYLOAD;
+	cwnd_seg = cwnd/MAX_PAYLOAD;
+	break;
+    case SV_CONG_AVOID:
+	server_state = SV_SLOW_START;
+	ss_thresh = cwnd/2;
+	if (ss_thresh == 0) {
+	    ss_thresh = MAX_PAYLOAD;
+	}
+	cwnd = MAX_PAYLOAD;
+	cwnd_seg = cwnd/MAX_PAYLOAD;
+	break;
+    }
+    return 0;
+}
 int ruft_server_send_pending_data_segments(ruft_pkt_ctx_t req_ctx,
 					   ruft_server_rqst_info_t rqst_info,
 					   int wnd, int offset, FILE *debg_ofp)
 {
     int send_ctr = offset;
     int is_last_pkt = FALSE;
+    int first_time = TRUE;
     fprintf(debg_ofp, "In func %s \n", __FUNCTION__);
 
     while (send_ctr < (offset+wnd))
@@ -566,15 +660,32 @@ int ruft_server_send_pending_data_segments(ruft_pkt_ctx_t req_ctx,
 	if (traff_info[send_ctr].no_ack_recvd >= 3) {
 	    ruft_server_send_file_seg(req_ctx, rqst_info, is_last_pkt,
 				      send_ctr, debg_ofp);
+	    fprintf(debg_ofp, "Retransmision for %d\n",
+		    traff_info[send_ctr].first_byte);
+	    if (first_time == TRUE) {
+		ruft_server_reconfigure_wnd();
+		first_time = FALSE;
+	    }
 	    return 0;
 	}
 	if(traff_info[send_ctr].no_ack_recvd == 0) {
 	   ruft_server_send_file_seg(req_ctx, rqst_info, is_last_pkt,
 				     send_ctr, debg_ofp);
+	   if(first_time == TRUE) {
+	       ruft_server_reconfigure_wnd();
+	       first_time = FALSE;
+	   }
 	}
 	send_ctr++;
 	fprintf(debg_ofp, "In while loop at %s\n", __FUNCTION__);
     }
+}
+int ruft_server_chk_timeout_threshold(unsigned int count)
+{
+    if(count > THRESHOLD) {
+	return TRUE;
+    }
+    return FALSE;
 }
 int ruft_server_send_file_seg_win(ruft_pkt_ctx_t req_ctx,
 				  ruft_server_rqst_info_t rqst_info,
@@ -584,6 +695,7 @@ int ruft_server_send_file_seg_win(ruft_pkt_ctx_t req_ctx,
     int is_last_pkt = FALSE;
     int all_ack_recvd = FALSE;
     int status = 0;
+    unsigned int timeout_count = 0;
     
     if (ctr == (max_wd - 1)) {
 	is_last_pkt = TRUE;
@@ -612,7 +724,14 @@ int ruft_server_send_file_seg_win(ruft_pkt_ctx_t req_ctx,
 	    return status;
 	}
 	if (status == 1) {
-	    fprintf(debg_ofp, "Ack recv loop timed out\n");
+	    timeout_count++;
+	    fprintf(debg_ofp, "Ack recv loop timed out count:%u\n",
+		    timeout_count);
+	    if(ruft_server_chk_timeout_threshold(timeout_count) == TRUE) {
+		all_ack_recvd = TRUE;
+		server_state = SV_FILE_SENT;
+		continue;
+	    }
 	}
 	all_ack_recvd = is_all_ack_recvd(wnd, offset);
 	if (all_ack_recvd == FALSE) {
@@ -654,9 +773,18 @@ int ruft_server_print_server_state(FILE *debg_ofp)
     }
     return 0;
 }
+int min(int a, int b)
+{
+    if (a >= b) {
+	return a;
+    }
+    if (b > a) {
+	return b;
+    }
+}
 int ruft_server_get_wnd (FILE *debg_ofp)
 {
-    ruft_server_print_server_state(stderr);
+    ruft_server_print_server_state(debg_ofp);
     switch(server_state)
     {
     case SV_SLOW_START:
@@ -671,9 +799,9 @@ int ruft_server_get_wnd (FILE *debg_ofp)
     if (cwnd > ss_thresh && server_state == SV_SLOW_START) {
 	server_state = SV_CONG_AVOID;
     }
-    fprintf(stderr, "cwnd_seg: %d Dist_ack_recvd: %d \n",
+    fprintf(debg_ofp, "cwnd_seg: %d Dist_ack_recvd: %d \n",
 	    cwnd_seg, no_dist_ack_recvd);
-    return cwnd_seg;
+    return min(cwnd_seg, rwnd_seg);
 }
 int ruft_server_wnd_init()
 {
@@ -694,12 +822,13 @@ int ruft_server_send_file(ruft_pkt_ctx_t req_ctx,
     wnd = ruft_server_get_wnd(debg_ofp);
     ruft_server_create_traff_window(rqst_info, debg_ofp);
     ruft_server_send_file_size(req_ctx, rqst_info, 0, debg_ofp);
+    ruft_server_add_tx_stat();
     while (server_state != SV_FILE_SENT && wnd_ctr < max_wd)
     {
 	if ((max_wd - wnd_ctr) <= (wnd - wnd_ctr)) {
 	    wnd = max_wd - wnd_ctr;
 	}
-	fprintf(stderr, "wnd: %d offset: %d\n", wnd, wnd_ctr);
+	fprintf(debg_ofp, "wnd: %d offset: %d\n", wnd, wnd_ctr);
 	ruft_server_send_file_seg_win(req_ctx, rqst_info,
 				      wnd, wnd_ctr, debg_ofp);
 	wnd_ctr = wnd_ctr + wnd;
@@ -849,6 +978,7 @@ int main(int argc, char *argv[])
     server_state = SV_WAIT;
     while(server_state == SV_WAIT)
     {
+	bzero(&serv_stats, sizeof(ruft_server_stats_t));
 	cli_len = sizeof(cli_addr);
 	num_bytes = recvfrom(udp_serv_sock_fd, &pkt, sizeof(pkt), 0,
 			     (struct sockaddr *) &cli_addr,
@@ -865,7 +995,9 @@ int main(int argc, char *argv[])
 	    cleanup(udp_serv_sock_fd, debg_ofp);
 	    return 1;
 	}
+	ruft_server_add_rx_stat();
 	ruft_server_handle_pkt(pkt, cli_addr, cli_len, debg_ofp);
+	ruft_server_print_stat(stdout);
 	fprintf(debg_ofp, "In main while loop\n");
 	
     }

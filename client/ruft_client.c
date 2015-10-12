@@ -617,9 +617,10 @@ int ruft_client_send_all_ack(client_info_t client_info, FILE *debg_ofp)
 				     client_info,
 				     traff_info[i-1].req_ctx.is_last_pkt,
 				     debg_ofp);
+		fprintf(debg_ofp, "Fast retransmit :%d\n",
+			traff_info[i-1].req_ctx.seq_no);
 		fprintf(debg_ofp, "In for loop %s\n", __FUNCTION__);
-	    }
-		  
+	    }	  
 	} 
     }
     fprintf(debg_ofp, "After for i: %d, j: %d, max_wd: %d\n", i, j, max_wd);
