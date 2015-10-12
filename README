@@ -30,9 +30,205 @@ SYNTAX: ./ruft_server.bin <port no> <rwnd: In Multiples of 1280(MSS)>
 $ ./ruft_server.bin 20010 5120
 
 				       II.Run Client
+				       
 SYNTAX: ./ruft_client.bin <server_host>	<server_port> <filename.txt> <0|1|2 {0 - No Loss 1 - 
 Variable loss2-High Latency}>	<rwnd:Multiple of 1280(MSS)>
 
 $ ./ruft_client.bin localhost 20010 file_small.txt 0 5120
 File Recieved
 Time taken in micro secs: 3209
+
+===============================================================================================================
+				      Sample Test Cases
+SMALL FILE(File Size: 6 bytes)
+
+No Drop Mode
+
+CLIENT
+[sirdas@silo client]$ ./ruft_client.bin localhost 20010 file_small.txt 0 5120
+File Recieved
+Time taken in micro secs: 3919
+SERVER
+File Sent
+Total Packets Stats:
+TX: 5	RX: 2
+Slow Start Packets Stats:
+TX: 5	RX: 1	TX%: 100	RX%: 50
+Congestion Avoidance Packets Stats:
+TX: 0	RX: 0	TX%: 0	RX%: 0
+
+
+Variable Packet Loss
+
+CLIENT
+[sirdas@silo client]$ ./ruft_client.bin localhost 20010 file_small.txt 1 5120
+File Recieved
+Time taken in micro secs: 3982
+SERVER
+Total Packets Stats:
+TX: 6	RX: 2
+Slow Start Packets Stats:
+TX: 6	RX: 1	TX%: 100	RX%: 50
+Congestion Avoidance Packets Stats:
+TX: 0	RX: 0	TX%: 0	RX%: 0
+
+High Latency Communication
+
+CLIENT
+[sirdas@silo client]$ ./ruft_client.bin localhost 20010 file_small.txt 2 5120
+File Recieved
+Time taken in micro secs: 5384
+[sirdas@silo client]$ 
+SERVER
+File Sent
+Total Packets Stats:
+TX: 8	RX: 2
+Slow Start Packets Stats:
+TX: 8	RX: 1	TX%: 100	RX%: 50
+Congestion Avoidance Packets Stats:
+TX: 0	RX: 0	TX%: 0	RX%: 0
+
+
+	MED FILE(20110 bytes Approx 20.11 KB)
+
+No Drop Mode
+
+CLIENT
+[sirdas@silo client]$ ./ruft_client.bin localhost 20010 file_med.txt 0 5120
+File Recieved
+Time taken in micro secs: 12590
+SERVER
+File Sent
+Total Packets Stats:
+TX: 23	RX: 6
+Slow Start Packets Stats:
+TX: 9	RX: 3	TX%: 39	RX%: 50
+Congestion Avoidance Packets Stats:
+TX: 14	RX: 2	TX%: 60	RX%: 33
+
+Variable Packet Loss
+
+CLIENT
+[sirdas@silo client]$ ./ruft_client.bin localhost 20010 file_med.txt 1 5120
+File Recieved
+Time taken in micro secs: 21398
+SERVER
+File Sent
+Total Packets Stats:
+TX: 50	RX: 25
+Slow Start Packets Stats:
+TX: 36	RX: 16	TX%: 72	RX%: 64
+Congestion Avoidance Packets Stats:
+TX: 14	RX: 8	TX%: 28	RX%: 32
+
+High Latency Communication
+
+CLIENT
+[sirdas@silo client]$ ./ruft_client.bin localhost 20010 file_med.txt 2 5120
+File Recieved
+Time taken in micro secs: 35066
+SERVER
+File Sent
+Total Packets Stats:
+TX: 159	RX: 14
+Slow Start Packets Stats:
+TX: 145	RX: 13	TX%: 91	RX%: 92
+Congestion Avoidance Packets Stats:
+TX: 14	RX: 0	TX%: 8	RX%: 0
+
+Medium Large TXT(File Size: 1009368 bytes Approx: 1MB )
+
+No Drop Mode
+
+CLIENT
+[sirdas@silo client]$ ./ruft_client.bin localhost 20010 file_med_large.txt 0 5120
+File Recieved
+Time taken in secs: 1
+SERVER
+File Sent
+Total Packets Stats:
+TX: 1173	RX: 106
+Slow Start Packets Stats:
+TX: 385	RX: 4	TX%: 32	RX%: 3
+Congestion Avoidance Packets Stats:
+TX: 788	RX: 101	TX%: 67	RX%: 95
+
+Variable Packet Loss
+
+CLIENT
+[sirdas@silo client]$ ./ruft_client.bin localhost 20010 file_med_large.txt 1 5120
+File Recieved
+Time taken in secs: 2
+SERVER
+File Sent
+Total Packets Stats:
+TX: 3052	RX: 1009
+Slow Start Packets Stats:
+TX: 2259	RX: 767	TX%: 74	RX%: 76
+Congestion Avoidance Packets Stats:
+TX: 793	RX: 241	TX%: 25	RX%: 23
+
+High Latency Communication
+
+CLIENT
+[sirdas@silo client]$ ./ruft_client.bin localhost 20010 file_med_large.txt 2 5120
+File Recieved
+Time taken in secs: 3
+SERVER
+File Sent
+Total Packets Stats:
+TX: 1586	RX: 275
+Slow Start Packets Stats:
+TX: 793	RX: 182	TX%: 50	RX%: 66
+Congestion Avoidance Packets Stats:
+TX: 793	RX: 92	TX%: 50	RX%: 33
+
+
+LARGE PACKET TXT(file size: 5348511 bytes Approx: 5.3MB)
+
+No Drop Mode
+
+CLIENT
+[sirdas@silo client]$ ./ruft_client.bin localhost 20010 file_large.txt 0 5120
+File Recieved
+Time taken in secs: 1
+SERVER
+File Sent
+Total Packets Stats:
+TX: 4185	RX: 107
+Slow Start Packets Stats:
+TX: 8	RX: 3	TX%: 0	RX%: 2
+Congestion Avoidance Packets Stats:
+TX: 4177	RX: 103	TX%: 99	RX%: 96
+
+Variable Packet Loss
+
+CLIENT
+[sirdas@silo client]$ ./ruft_client.bin localhost 20010 file_large.txt 1 5120
+File Recieved
+Time taken in secs: 23
+SERVER
+Total Packets Stats:
+TX: 46138	RX: 2543
+Slow Start Packets Stats:
+TX: 41953	RX: 2015	TX%: 90	RX%: 79
+Congestion Avoidance Packets Stats:
+TX: 4185	RX: 527	TX%: 9	RX%: 20
+
+High Latency Communication
+
+CLIENT
+[sirdas@silo client]$ ./ruft_client.bin localhost 20010 file_large.txt 2 5120
+File Recieved
+Time taken in secs: 165
+SERVER
+[sirdas@silo reliable_udp_file_transfer]$ ./ruft_server.bin 20010 5120
+File Sent
+Total Packets Stats:
+TX: 68535	RX: 4973
+Slow Start Packets Stats:
+TX: 64355	RX: 4819	TX%: 93	RX%: 96
+Congestion Avoidance Packets Stats:
+TX: 4180	RX: 153	TX%: 6	RX%: 3
+
+====================================END=======================================
