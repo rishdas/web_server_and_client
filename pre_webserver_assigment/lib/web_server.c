@@ -111,12 +111,18 @@ int build_http_get_response(http_packet_info_t req_info,
     int         uri_file_fd;
     struct stat f_stat;
     char        *file_in_str;
+
+    if (strncmp(req_info.method, "GET", strlen("GET"))!=0) {
+	fprintf(stderr, "400 Bad Request\n");
+	return 2;
+    }
     file_name = get_file_from_uri(req_info.uri);
     uri_file_p = fopen(file_name, "r");
     if (uri_file_p == NULL) {
 	fprintf(debg_ofp, "ERROR opening file file not found\n");
 	return 1;
     }
+
     uri_file_fd = fileno(uri_file_p);
     fstat(uri_file_fd, &f_stat);
     sprintf(resp_buf, "HTTP/1.0 200 OK\r\n");
@@ -142,6 +148,11 @@ int build_http_get_response_persitant(http_packet_info_t req_info,
     int         uri_file_fd;
     struct stat f_stat;
     char        *file_in_str;
+
+    if (strncmp(req_info.method, "GET", strlen("GET"))!=0) {
+	fprintf(stderr, "400 Bad Request\n");
+	return 2;
+    }
     file_name = get_file_from_uri(req_info.uri);
     uri_file_p = fopen(file_name, "r");
     if (uri_file_p == NULL) {
@@ -181,6 +192,22 @@ int build_http_get_err_response(char *resp_buf, FILE *debg_ofp)
     return 0;
   
 }
+int build_http_get_err_response_bad_req(char *resp_buf,
+					FILE *debg_ofp)
+{
+    char resp_msg[MAX_BUFFER];
+    sprintf(resp_msg,"<html><title>Tyrion Error</title>" \
+	    "<body><h1>400 Bad Request</h1></body></html>");
+  
+    sprintf(resp_buf, "HTTP/1.0 %s %s\r\n", "400", "Bad Request");
+    sprintf(resp_buf, "%sContent-type: text/html\r\n", resp_buf);
+    sprintf(resp_buf, "%sContent-length: %lu\r\n\r\n", resp_buf,
+	    strlen(resp_msg));
+    sprintf(resp_buf, "%s%s", resp_buf, resp_msg);
+    fprintf(debg_ofp, "INFO: GET Response: \n %s\n", resp_buf);
+    return 0;
+  
+}
 int respond_to_http(int conn_sock_fd,
 		    http_packet_info_t req_info, FILE *debg_ofp)
 {
@@ -201,6 +228,9 @@ int respond_to_http(int conn_sock_fd,
 	build_http_get_err_response(resp_buf, debg_ofp);
 	send(conn_sock_fd, resp_buf, strlen(resp_buf), 0);
 	break;
+    case 2:
+	build_http_get_err_response_bad_req(resp_buf, debg_ofp);
+	send(conn_sock_fd, resp_buf, strlen(resp_buf), 0);
     default:
 	return status;
     }
