@@ -92,6 +92,7 @@ int main(int argc, char *argv[])
 	thrd_args[i].status        = 0;
 	status = pthread_create(&pthread_arr[i], NULL,
 				handle_connection, &thrd_args);
+	pthread_detach(pthread_arr[i]);
 	i++;
     }
     cleanup(web_serv_sock_fd, debg_ofp);

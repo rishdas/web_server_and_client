@@ -20,6 +20,23 @@ http://silo.soic.indiana.edu:20010/PersistantTest.html
 http://silo.soic.indiana.edu:20010/HelloWorld.html
 http://silo.soic.indiana.edu:20010/HelloWorldReply.html
 http://silo.soic.indiana.edu:20010/HelloWorldReply.htm -- 404 not found
+=====Testing 400 error====
+===Test 1====
+sirdas@silo ~]$ telnet localhost 20010
+Trying 127.0.0.1...
+Connected to localhost.
+Escape character is '^]'.
+ge /HelloWorld.html HTTP/1.0
+HTTP/1.0 400 Bad Request
+Content-type: text/html
+Content-length: 77
+
+<html><title>Tyrion Error</title><body><h1>400 Bad Request</h1></body></html>Connection closed by foreign host.
+=============
+Please try the following test cases
+GET /Hello World.html HTTP/1.1
+GET /HelloWOWOO
+GET /HelloWorld.htm HTTP
 
 
 Note: After closing the server if you want to monitor logs a log file with extension .log will be genrated.
@@ -101,28 +118,7 @@ $make
 $./web_server.bin 20010
 To test 
 run to simultanoes connections from browswer and gdb the running file like this
-gdb -args ./web_server 20010
-$ gdb -args ./web_server.bin 20010
-GNU gdb (GDB) Red Hat Enterprise Linux 7.6.1-64.el7
-Copyright (C) 2013 Free Software Foundation, Inc.
-License GPLv3+: GNU GPL version 3 or later <http://gnu.org/licenses/gpl.html>
-This is free software: you are free to change and redistribute it.
-There is NO WARRANTY, to the extent permitted by law.  Type "show copying"
-and "show warranty" for details.
-This GDB was configured as "x86_64-redhat-linux-gnu".
-For bug reporting instructions, please see:
-<http://www.gnu.org/software/gdb/bugs/>...
-Reading symbols from /nfs/nfs4/home/sirdas/computer_networks/pre_webserver_assigment/multi_threaded_server/web_server.bin...done.
-(gdb) run
-Starting program: /nfs/nfs4/home/sirdas/computer_networks/pre_webserver_assigment/multi_threaded_server/./web_server.bin 20010
-[Thread debugging using libthread_db enabled]
-Using host libthread_db library "/lib64/libthread_db.so.1".
-[New Thread 0x7ffff75f9700 (LWP 121125)]
-[New Thread 0x7ffff6df8700 (LWP 121126)]
-[Thread 0x7ffff75f9700 (LWP 121125) exited]
-[Thread 0x7ffff6df8700 (LWP 121126) exited]
 
-Elapsed: 18966
 [sirdas@silo client]$ ./web_client.bin localhost 20012 np test.txt 
 Elapsed: 31532
-[sirdas@silo client]$ ./web_client.bin localhost 20012 np test.txt 
+
