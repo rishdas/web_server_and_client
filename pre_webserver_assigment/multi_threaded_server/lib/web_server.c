@@ -27,6 +27,29 @@ typedef struct hdl_conn_args_
     FILE            *debg_ofp;
     int             status;
 } hdl_conn_args_t;
+int is_bad_reqest(http_packet_info_t req_info)
+{
+    int i = 0;
+    if (strncmp(req_info.method, "GET", strlen("GET"))!=0) {
+	fprintf(stderr, "400 Bad Request-1\n");
+	return 1;
+    }
+    if(req_info.uri[0] != '/') {
+	fprintf(stderr, "400 Bad Request-2\n");
+	return 1;
+    }
+    while(req_info.uri[i]!= '\0') {
+	if (req_info.uri[i] == ' ') {
+	    fprintf(stderr, "400 Bad Request-3\n");
+	    return 1;
+	}
+	i++;
+    }
+    if(strncmp(req_info.version, "HTTP/1.", strlen("HTTP/1.")) != 0) {
+	fprintf(stderr, "400 Bad Request-4 %s\n", req_info.version);
+	return 1;
+    }
+}
 int parse_http_request(char *req, http_packet_info_t *req_info,
 		       FILE *debg_ofp)
 {
@@ -118,6 +141,9 @@ int build_http_get_response(http_packet_info_t req_info,
     int         uri_file_fd;
     struct stat f_stat;
     char        *file_in_str;
+    if(is_bad_reqest(req_info) == 1) {
+ 	return 2;
+     }
     file_name = get_file_from_uri(req_info.uri);
     uri_file_p = fopen(file_name, "r");
     if (uri_file_p == NULL) {
@@ -149,6 +175,11 @@ int build_http_get_response_persitant(http_packet_info_t req_info,
     int         uri_file_fd;
     struct stat f_stat;
     char        *file_in_str;
+
+    if(is_bad_reqest(req_info) == 1) {
+ 	return 2;
+    }
+    
     file_name = get_file_from_uri(req_info.uri);
     uri_file_p = fopen(file_name, "r");
     if (uri_file_p == NULL) {
@@ -188,6 +219,22 @@ int build_http_get_err_response(char *resp_buf, FILE *debg_ofp)
     return 0;
   
 }
+int build_http_get_err_response_bad_req(char *resp_buf,
+					FILE *debg_ofp)
+{
+    char resp_msg[MAX_BUFFER];
+    sprintf(resp_msg,"<html><title>Tyrion Error</title>" \
+	    "<body><h1>400 Bad Request</h1></body></html>");
+  
+    sprintf(resp_buf, "HTTP/1.0 %s %s\r\n", "400", "Bad Request");
+    sprintf(resp_buf, "%sContent-type: text/html\r\n", resp_buf);
+    sprintf(resp_buf, "%sContent-length: %lu\r\n\r\n", resp_buf,
+	    strlen(resp_msg));
+    sprintf(resp_buf, "%s%s", resp_buf, resp_msg);
+    fprintf(debg_ofp, "INFO: GET Response: \n %s\n", resp_buf);
+    return 0;
+  
+}
 int respond_to_http(int conn_sock_fd,
 		    http_packet_info_t req_info, FILE *debg_ofp)
 {
@@ -206,6 +253,10 @@ int respond_to_http(int conn_sock_fd,
 	break;
     case 1:
 	build_http_get_err_response(resp_buf, debg_ofp);
+	send(conn_sock_fd, resp_buf, strlen(resp_buf), 0);
+	break;
+    case 2:
+	build_http_get_err_response_bad_req(resp_buf, debg_ofp);
 	send(conn_sock_fd, resp_buf, strlen(resp_buf), 0);
 	break;
     default:

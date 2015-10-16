@@ -118,7 +118,12 @@ $make
 $./web_server.bin 20010
 To test 
 run to simultanoes connections from browswer and gdb the running file like this
+Open in Chrome
+http://silo.soic.indiana.edu:20010/HelloWorld.html
 
 [sirdas@silo client]$ ./web_client.bin localhost 20012 np test.txt 
 Elapsed: 31532
+
+Note: Multithreaded still has some bugs but some significant improvements made. Has some caveats explained in detail in the write up section.
+
 
