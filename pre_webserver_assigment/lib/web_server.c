@@ -102,6 +102,31 @@ char *get_file_from_uri(char *uri)
     strncpy(file_name, uri+1,MAXLINE);
     return file_name;
 }
+
+int is_bad_reqest(http_packet_info_t req_info)
+{
+    int i = 0;
+    if (strncmp(req_info.method, "GET", strlen("GET"))!=0) {
+	fprintf(stderr, "400 Bad Request-1\n");
+	return 1;
+    }
+    if(req_info.uri[0] != '/') {
+	fprintf(stderr, "400 Bad Request-2\n");
+	return 1;
+    }
+    while(req_info.uri[i]!= '\0') {
+	if (req_info.uri[i] == ' ') {
+	    fprintf(stderr, "400 Bad Request-3\n");
+	    return 1;
+	}
+	i++;
+    }
+    if(strncmp(req_info.version, "HTTP/1.", strlen("HTTP/1.")) != 0) {
+	fprintf(stderr, "400 Bad Request-4 %s\n", req_info.version);
+	return 1;
+    }
+}
+
 int build_http_get_response(http_packet_info_t req_info,
 			    char *resp_buf, FILE *debg_ofp)
 {
@@ -112,8 +137,7 @@ int build_http_get_response(http_packet_info_t req_info,
     struct stat f_stat;
     char        *file_in_str;
 
-    if (strncmp(req_info.method, "GET", strlen("GET"))!=0) {
-	fprintf(stderr, "400 Bad Request\n");
+    if(is_bad_reqest(req_info) == 1) {
 	return 2;
     }
     file_name = get_file_from_uri(req_info.uri);
@@ -127,7 +151,8 @@ int build_http_get_response(http_packet_info_t req_info,
     fstat(uri_file_fd, &f_stat);
     sprintf(resp_buf, "HTTP/1.0 200 OK\r\n");
     sprintf(resp_buf, "%sServer: Stark Web Server\r\n", resp_buf);
-    sprintf(resp_buf, "%sContent-length: %lld\r\n", resp_buf, f_stat.st_size);
+    sprintf(resp_buf, "%sContent-length: %lld\r\n",
+	    resp_buf, f_stat.st_size);
     sprintf(resp_buf, "%sContent-type: %s\r\n\r\n", resp_buf, "text/html");
 
     file_in_str = malloc(f_stat.st_size);
@@ -149,8 +174,7 @@ int build_http_get_response_persitant(http_packet_info_t req_info,
     struct stat f_stat;
     char        *file_in_str;
 
-    if (strncmp(req_info.method, "GET", strlen("GET"))!=0) {
-	fprintf(stderr, "400 Bad Request\n");
+    if(is_bad_reqest(req_info) == 1) {
 	return 2;
     }
     file_name = get_file_from_uri(req_info.uri);
@@ -278,7 +302,8 @@ int wait_for_and_hdl_persistant_conn(int new_sock_conn,
 	    parse_http_request(buf, &req_info, debg_ofp);
 	    status = respond_to_http(new_sock_conn, req_info, debg_ofp);
 	    if(req_info.is_keepalive == 1) {
-		fprintf(debg_ofp, "ERROR: Rishi Recieved a Close Connection\n");
+		fprintf(debg_ofp,
+			"ERROR: Rishi Recieved a Close Connection\n");
 		fflush(debg_ofp);
 		return status;
 	    }

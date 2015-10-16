@@ -92,22 +92,6 @@ int main(int argc, char *argv[])
 	thrd_args[i].status        = 0;
 	status = pthread_create(&pthread_arr[i], NULL,
 				handle_connection, &thrd_args);
-	if (i == MAX_THREADS-1) {
-	    j = 0;
-	    while (j <= i)
-	    {
-		pthread_join(pthread_arr[j], &thrd_retval);
-		if (*((int *)thrd_retval) != 0) {
-		    fprintf(debg_ofp, "ERROR in accepting connection\n");
-		    fprintf(stderr,
-			    "ERROR in accepting connection see log files"\
-			    "for details\n");
-		    fflush(debg_ofp);
-		}
-		j++;
-	    }
-	    i = 0;
-	}
 	i++;
     }
     cleanup(web_serv_sock_fd, debg_ofp);
