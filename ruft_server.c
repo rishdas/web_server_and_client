@@ -35,7 +35,7 @@ unsigned long int dev_rtt = 0;
 unsigned long int timeout = 500;
 unsigned int no_dist_ack_recvd = 0;
 ruft_server_stats_t serv_stats;
-#define THRESHOLD 1000
+#define THRESHOLD 500
 
 /*
  * Free the return value after use
@@ -641,6 +641,15 @@ int ruft_server_reconfigure_wnd()
 	cwnd = MAX_PAYLOAD;
 	cwnd_seg = cwnd/MAX_PAYLOAD;
 	break;
+    case SV_FAST_RECOV:
+	ss_thresh = cwnd/2;
+	if (ss_thresh == 0) {
+	    ss_thresh = MAX_PAYLOAD;
+	}
+	cwnd = ss_thresh + 3*MAX_PAYLOAD;
+	cwnd_seg = cwnd/MAX_PAYLOAD;
+	server_state = SV_CONG_AVOID;
+	break;
     }
     ruft_server_print_server_state(stdout);
     return 0;
@@ -660,10 +669,14 @@ int ruft_server_send_pending_data_segments(ruft_pkt_ctx_t req_ctx,
 	    is_last_pkt = TRUE;
 	}
 	if (traff_info[send_ctr].no_ack_recvd >= 3) {
+	    traff_info[send_ctr].no_ack_recvd = 0;
+	    traff_info[send_ctr].is_acked = FALSE;
 	    ruft_server_send_file_seg(req_ctx, rqst_info, is_last_pkt,
 				      send_ctr, debg_ofp);
 	    fprintf(debg_ofp, "Retransmision for %d\n",
 		    traff_info[send_ctr].first_byte);
+	    server_state = SV_FAST_RECOV;
+	    ruft_server_print_server_state(stdout);
 	    if (first_time == TRUE) {
 		ruft_server_reconfigure_wnd();
 		first_time = FALSE;
@@ -732,6 +745,7 @@ int ruft_server_send_file_seg_win(ruft_pkt_ctx_t req_ctx,
 	    if(ruft_server_chk_timeout_threshold(timeout_count) == TRUE) {
 		all_ack_recvd = TRUE;
 		server_state = SV_FILE_SENT;
+		fprintf(stdout, "Time out threshold reached\n");
 		ruft_server_print_server_state(stdout);
 		continue;
 	    }
