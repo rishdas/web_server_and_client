@@ -373,6 +373,7 @@ int ruft_server_process_req(ruft_pkt_ctx_t ctx,
     char method[10];
     FILE *uri_file_p;
     server_state = SV_PROC_REQ;
+    ruft_server_print_server_state(stdout);
     sscanf(ctx.payload, "%s %s", method, rqst_info->file_name);
     fprintf(debg_ofp, "Method : %s File_name: %s\n",
 	    method, rqst_info->file_name);
@@ -641,6 +642,7 @@ int ruft_server_reconfigure_wnd()
 	cwnd_seg = cwnd/MAX_PAYLOAD;
 	break;
     }
+    ruft_server_print_server_state(stdout);
     return 0;
 }
 int ruft_server_send_pending_data_segments(ruft_pkt_ctx_t req_ctx,
@@ -730,6 +732,7 @@ int ruft_server_send_file_seg_win(ruft_pkt_ctx_t req_ctx,
 	    if(ruft_server_chk_timeout_threshold(timeout_count) == TRUE) {
 		all_ack_recvd = TRUE;
 		server_state = SV_FILE_SENT;
+		ruft_server_print_server_state(stdout);
 		continue;
 	    }
 	}
@@ -784,7 +787,6 @@ int min(int a, int b)
 }
 int ruft_server_get_wnd (FILE *debg_ofp)
 {
-    ruft_server_print_server_state(debg_ofp);
     switch(server_state)
     {
     case SV_SLOW_START:
@@ -799,6 +801,7 @@ int ruft_server_get_wnd (FILE *debg_ofp)
     if (cwnd > ss_thresh && server_state == SV_SLOW_START) {
 	server_state = SV_CONG_AVOID;
     }
+    ruft_server_print_server_state(stdout);
     fprintf(debg_ofp, "cwnd_seg: %d Dist_ack_recvd: %d \n",
 	    cwnd_seg, no_dist_ack_recvd);
     return min(cwnd_seg, rwnd_seg);
@@ -818,6 +821,7 @@ int ruft_server_send_file(ruft_pkt_ctx_t req_ctx,
     int wnd = 1;
     int temp_wnd = 5;
     server_state = SV_SLOW_START;
+    ruft_server_print_server_state(stdout);
     ruft_server_wnd_init();
     wnd = ruft_server_get_wnd(debg_ofp);
     ruft_server_create_traff_window(rqst_info, debg_ofp);
@@ -841,6 +845,7 @@ int ruft_server_send_file(ruft_pkt_ctx_t req_ctx,
 	}
 	if (is_all_ack_recvd(max_wd, 0) == TRUE) {
 	    server_state = SV_FILE_SENT;
+	    ruft_server_print_server_state(stdout);
 	    fprintf(stdout, "File Sent\n");
 	}
 	fprintf(debg_ofp, "In while loop at %s\n", __FUNCTION__);
@@ -880,6 +885,7 @@ int ruft_server_handle_err(ruft_pkt_ctx_t req_ctx,
     int                     status;
     bzero(&ctx, sizeof(ctx));
     server_state = SV_REPLY_ERR;
+    ruft_server_print_server_state(stdout);
     ruft_server_create_traff_window(rqst_info, debg_ofp);
     status = ruft_server_send_err_msg(req_ctx, rqst_info, debg_ofp);
     if (status != 0) {
@@ -930,6 +936,7 @@ int ruft_server_handle_pkt(ruft_pkt_info_t pkt,struct sockaddr_in cli_addr,
 	break;
     }
     server_state = SV_WAIT;
+    ruft_server_print_server_state(stdout);
     /* if (traff_info != NULL) { */
     /* 	free(traff_info); */
     /* } */
@@ -976,6 +983,7 @@ int main(int argc, char *argv[])
 	exit(status);
     }
     server_state = SV_WAIT;
+    ruft_server_print_server_state(stdout);
     while(server_state == SV_WAIT)
     {
 	bzero(&serv_stats, sizeof(ruft_server_stats_t));
