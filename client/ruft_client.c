@@ -195,9 +195,17 @@ int ruft_client_set_data_recv_time(unsigned int index)
 
 int ruft_client_set_ack_sent(unsigned int index)
 {
-    traff_info[index].no_ack_sent = traff_info[index].no_ack_sent + 1;
-    if (traff_info[index].no_ack_sent < 2) {
-	ruft_client_set_ack_sent_time(index);
+    int i = 1;
+    for (i = 1; i <= index; i++)
+    {
+	if (traff_info[i].no_ack_sent >= 1) {
+	    continue;
+	}
+	traff_info[i].no_ack_sent = traff_info[i].no_ack_sent + 1;
+	traff_info[i].is_acked = TRUE;
+	if (traff_info[i].no_ack_sent < 2) {
+	    ruft_client_set_ack_sent_time(index);
+	}
     }
     return 0;
     
@@ -445,9 +453,17 @@ int ruft_client_recv_pkt_with_timeout(client_info_t client_info,
     int                pos = 0;
     int                rd_index = recv_ctr;
     int                first_time = TRUE;
-    
+
+    if ((is_all_data_recvd(max_wd-1, 1) == TRUE)
+	&& (is_all_ack_sent(max_wd-1, 1) == TRUE)) {
+	fprintf(debg_ofp, "In recv timeout \n");
+	client_state = CL_FILE_RCVD;
+	return 0;
+    } 
+
     recv_timeout.tv_sec = 0;
     recv_timeout.tv_usec = timeout;
+    fprintf(debg_ofp, "Timeout : %d\n", timeout);
     if (client_info.network_mode == CL_VARIABLE_LOSS) {
 	rd_index = ruft_client_get_rand_drop_index(recv_ctr, debg_ofp);
     }
@@ -457,8 +473,8 @@ int ruft_client_recv_pkt_with_timeout(client_info_t client_info,
 	status = select(client_sock_fd + 1, &sock_set,
 			NULL, NULL, &recv_timeout);
 	if (status == 0) {
-	    fprintf(stderr, "ERROR: time out reached\n");
-	    fflush(stderr);
+	    fprintf(debg_ofp, "ERROR: time out reached\n");
+	    fflush(debg_ofp);
 	    return 1;
 	}
 	if (FD_ISSET(client_sock_fd, &sock_set)) {
@@ -502,6 +518,7 @@ int ruft_client_recv_pkt_with_timeout(client_info_t client_info,
 		recv_ctr++;
 		fprintf(debg_ofp, "Pkt Recvd: %d\n", ctx.seq_no);
 		fprintf(debg_ofp, "In inner while loop %s\n", __FUNCTION__);
+		start_select = TRUE;
 	    }
 	}
 	fprintf(debg_ofp, "In outer while loop %s recv_ctr: %d\n",
@@ -555,18 +572,34 @@ int is_all_data_recvd(int wnd, int offset)
 
     for (index = offset ; index < (offset+wnd); index++) {
 	if (traff_info[index].no_data_recvd == 0) {
-	    fprintf(debg_ofp,"Chk ack Seg: %d\n", traff_info[index].seg_no);
+	    fprintf(debg_ofp,"No data recvd Seg: %d Index: %d\n",
+		    traff_info[index].seg_no, index);
 	    return FALSE;
 	}
     }
     
     return TRUE;    
 }
+int is_all_ack_sent(int wnd, int offset)
+{
+    int index = offset;
+
+    for (index = offset ; index < (offset+wnd); index++) {
+	if (traff_info[index].is_acked == FALSE) {
+	    fprintf(debg_ofp, "Ack not sent Seg: %d Index: %d\n",
+		    traff_info[index].seg_no, index);
+	    return FALSE;
+	}
+    }
+    
+    return TRUE;
+}
 int ruft_client_send_all_ack(client_info_t client_info, FILE *debg_ofp)
 {
     int i = 1, j = 1;
     fprintf(debg_ofp, "Before start i: %d, j: %d, max_wd: %d\n", i, j, max_wd);
-    if (is_all_data_recvd(max_wd, 1) == TRUE) {
+    if ((is_all_data_recvd(max_wd-1, 1) == TRUE)
+	&& (is_all_ack_sent(max_wd-1, 1) == TRUE)) {
 	client_state = CL_FILE_RCVD;
     }
     while (i<max_wd &&
@@ -582,7 +615,10 @@ int ruft_client_send_all_ack(client_info_t client_info, FILE *debg_ofp)
 	    i, j, max_wd);
     if (i >= max_wd) {
 	if (last_pkt_recvd == TRUE) {
-	    client_state = CL_FILE_RCVD;
+	    if ((is_all_data_recvd(max_wd-1, 1) == TRUE)
+		&& (is_all_ack_sent(max_wd, 1) == TRUE)) {
+		client_state = CL_FILE_RCVD;
+	    }
 	    return 0;
 	}
     }
@@ -597,10 +633,14 @@ int ruft_client_send_all_ack(client_info_t client_info, FILE *debg_ofp)
 			     client_info,
 			     traff_info[i-1].req_ctx.is_last_pkt,
 			     debg_ofp);
+	ruft_client_set_ack_sent(i-1);
     }
     if (i >= max_wd) {
 	if (last_pkt_recvd == TRUE) {
-	    client_state = CL_FILE_RCVD;
+	    if ((is_all_data_recvd(max_wd-1, 1) == TRUE)
+		&& (is_all_ack_sent(max_wd-1, 1) == TRUE)) {
+		client_state = CL_FILE_RCVD;
+	    }
 	    return 0;
 	}
     }
@@ -617,6 +657,9 @@ int ruft_client_send_all_ack(client_info_t client_info, FILE *debg_ofp)
 				     client_info,
 				     traff_info[i-1].req_ctx.is_last_pkt,
 				     debg_ofp);
+		ruft_client_set_ack_sent(i-1);
+		traff_info[i].is_acked = FALSE;
+		traff_info[i].no_data_recvd = 0;
 		fprintf(debg_ofp, "Fast retransmit :%d\n",
 			traff_info[i-1].req_ctx.seq_no);
 		fprintf(debg_ofp, "In for loop %s\n", __FUNCTION__);
