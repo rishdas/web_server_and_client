@@ -793,10 +793,10 @@ int ruft_server_print_server_state(FILE *debg_ofp)
 int min(int a, int b)
 {
     if (a >= b) {
-	return a;
+	return b;
     }
     if (b > a) {
-	return b;
+	return a;
     }
 }
 int ruft_server_get_wnd (FILE *debg_ofp)
