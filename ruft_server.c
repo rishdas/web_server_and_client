@@ -824,8 +824,8 @@ int ruft_server_wnd_init()
 {
     cwnd = MAX_PAYLOAD;
     cwnd_seg = 1;
-    ss_thresh = 4*MAX_PAYLOAD;
-    ss_thresh_seg = 4;
+    ss_thresh = 50*MAX_PAYLOAD;
+    ss_thresh_seg = 50;
     no_dist_ack_recvd = 0;
 }
 int ruft_server_send_file(ruft_pkt_ctx_t req_ctx,
