@@ -801,6 +801,7 @@ int min(int a, int b)
 }
 int ruft_server_get_wnd (FILE *debg_ofp)
 {
+    int wnd;
     switch(server_state)
     {
     case SV_SLOW_START:
@@ -818,7 +819,11 @@ int ruft_server_get_wnd (FILE *debg_ofp)
     ruft_server_print_server_state(stdout);
     fprintf(debg_ofp, "cwnd_seg: %d Dist_ack_recvd: %d \n",
 	    cwnd_seg, no_dist_ack_recvd);
-    return min(cwnd_seg, rwnd_seg);
+    fprintf(debg_ofp, "cwwnd_seg: %d rwnd_seg: %d\n",
+	    cwnd_seg, rwnd_seg);
+    wnd = min(cwnd_seg, rwnd_seg);
+
+    return wnd;
 }
 int ruft_server_wnd_init()
 {
@@ -833,7 +838,6 @@ int ruft_server_send_file(ruft_pkt_ctx_t req_ctx,
 {
     int wnd_ctr = 1;
     int wnd = 1;
-    int temp_wnd = 5;
     server_state = SV_SLOW_START;
     ruft_server_print_server_state(stdout);
     ruft_server_wnd_init();
