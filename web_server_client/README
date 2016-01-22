@@ -1,0 +1,129 @@
+####HTTP Web Server, Client and UDP variant of both#####
+-----Stark Server and Lannister client---
+
+$tar -zxvf stark_package.tar.gz
+$cd pre_webserver_assigment
+-Find Write up as a file stark_server_writeup.docx(Becuase it has screenshots)
+----Build Server----
+
+$cd lib
+$make
+$cd ..
+$make
+$export LD_LIBRARY_PATH=$PWD/lib:$LD_LIBRARY_PATH
+Run the server--
+$./web_server.bin 20010 -- in case silo please choose a port higher than 20000
+
+Test Cases:
+Open Browser
+http://silo.soic.indiana.edu:20010/PersistantTest.html
+http://silo.soic.indiana.edu:20010/HelloWorld.html
+http://silo.soic.indiana.edu:20010/HelloWorldReply.html
+http://silo.soic.indiana.edu:20010/HelloWorldReply.htm -- 404 not found
+=====Testing 400 error====
+===Test 1====
+sirdas@silo ~]$ telnet localhost 20010
+Trying 127.0.0.1...
+Connected to localhost.
+Escape character is '^]'.
+ge /HelloWorld.html HTTP/1.0
+HTTP/1.0 400 Bad Request
+Content-type: text/html
+Content-length: 77
+
+<html><title>Tyrion Error</title><body><h1>400 Bad Request</h1></body></html>Connection closed by foreign host.
+=============
+Please try the following test cases
+GET /Hello World.html HTTP/1.1
+GET /HelloWOWOO
+GET /HelloWorld.htm HTTP
+
+
+Note: After closing the server if you want to monitor logs a log file with extension .log will be genrated.
+
+
+
+----Build Client----
+$cd $ROOT -- as in the root of untared directory
+$cd client
+$make
+$./web_client.bin localhost 20010 np FileListCaps.txt
+Syntax--
+$/web_client.bin <hostname> <server_port> <np/p:Connection type> <Requesting File>
+
+Note: If the requesting file is in the wd of the client then it assumes that its a list of files in Server. I have left 2 such files FileListCaps.txt and FileList.txt. If the file is not present in your PWD then it will try to fetch it from the server(just that file only).
+
+Note: After closing the server if you want to monitor logs a log file with extension .log will be genrated.
+
+Test Cases:
+./web_client.bin localhost 20010 p HelloWorld.html
+./web_client.bin localhost 20010 p test.txt -- 1 MB File
+Time Elapsed: 15308
+./web_client.bin localhost 20010 np test.txt -- 1 MB File
+Elapsed: 17880
+./web_client.bin localhost 20011 p FileListCaps.txt -- list of small 10 files
+Time Elapsed: 8085
+./web_client.bin localhost 20011 np FileListCaps.txt -- list of small 10 files
+Elapsed: 8221
+./web_client.bin localhost 20010 np FileList.txt -- List of 10 1MB files
+Elapsed: 7352442
+./web_client.bin localhost 20010 p FileList.txt  -- List of 10 MB files
+Time Elapsed: 6697392
+
+More detailed analysis of Time taken for 1, 2.. 10 MB files in the write up
+
+
+---Build UDP server---
+cd $ROOT -- as in the root of untared directory
+$cd udp_server
+$make
+$./udp_server 20010  -- same logic of port nos as mentioned above
+
+Note: After closing the server if you want to monitor logs a log file with extension .log will be genrated.
+Test Cases :
+
+As as part of UDP client see Below
+
+---Build UDP client---
+
+$cd $ROOT -- as in the root of untared directory
+$cd udp_server/client
+$make
+$./udp_client.bin localhost 20010 HelloWorld.html
+
+
+Note: In case of silo run server and client on same machine cause it is not able to connect to the silo machine via UDP maybe becuase of firewall issues.
+
+Note: If the requesting file is in the wd of the client then it assumes that its a list of files in Server. I have left 2 such files FileListCaps.txt and FileList.txt. If the file is not present in your PWD then it will try to fetch it from the server(just that file only).
+
+Note: After closing the server if you want to monitor logs a log file with extension .log will be genrated.
+
+Test cases:
+$./udp_client.bin localhost 20010 HelloWorld.html
+$./udp_client.bin localhost 20010 udp_server.c
+Time Elapsed: 1315
+$./udp_client.bin localhost 20010 test.txt
+Packet Loss
+Segment no: 1008  Max Segment No: 1010
+-------Multi Threaded Server----------
+
+$cd $ROOT -- as in the root of untared directory
+$cd multi_threaded_server/
+$cd lib
+$make
+$cd ..
+Note: if u have already doen this lib part earlier do it in another bash session
+$export LD_LIBRARY_PATH=$PWD/lib:$LD_LIBRARY_PATH
+$make
+$./web_server.bin 20010
+To test 
+run to simultanoes connections from browswer and gdb the running file like this
+Open in Chrome
+http://silo.soic.indiana.edu:20010/HelloWorld.html
+
+[sirdas@silo client]$ ./web_client.bin localhost 20012 np test.txt 
+Elapsed: 31532
+
+Note: Multithreaded still has some bugs but some significant improvements made. Has some caveats explained in detail in the write up section.
+
+
